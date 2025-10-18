@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZerandoVianei</title>
+    
+    <style>
+        /* ... (Estilos CSS existentes) ... */
+        body {
+            margin: 0;
+            overflow: hidden; 
+            background-color: black;
+            font-family: sans-serif;
+            color: white;
+            text-align: center;
+        }
+        /* Título do Jogo Ajustado para Efeito Onda */
+        .game-title {
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 3em;
+            font-weight: bold;
+            z-index: 1000;
+            pointer-events: none;
+            display: flex; 
+            white-space: nowrap;
+        }
+        .title-char {
+            display: inline-block;
+            animation: letter-wave 3s infinite alternate ease-in-out; 
+            transform-origin: bottom;
+            font-size: 1em; 
+        }
+        @keyframes letter-wave {
+            0% { transform: translateY(0) rotate(-1deg); color: #FF0000; } 
+            33% { color: #FFFF00; } 
+            66% { color: #00FFFF; } 
+            100% { transform: translateY(-15px) rotate(1deg); color: #00FF00; } 
+        }
+        #game-area {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            z-index: 500; 
+        }
+        #event-feedback {
+            position: absolute;
+            top: 15%; 
+            left: 50%;
+            transform: translate(-50%, -50%); 
+            padding: 10px 20px;
+            font-size: 2em; 
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid; 
+            border-radius: 5px;
+            z-index: 101; 
+            opacity: 0; 
+            transition: opacity 5s linear; 
+            pointer-events: none; 
+            color: red; 
+        }
+        .floating-feedback {
+            position: absolute;
+            font-size: 2em;
+            font-weight: bold;
+            color: red;
+            text-shadow: 0 0 5px black;
+            opacity: 1;
+            z-index: 105;
+            pointer-events: none; 
+            animation: fade-out-up 3s forwards; 
+            text-align: center;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .floating-feedback .monster-value {
+             display: block; 
+             font-size: 1.5em; 
+             margin-bottom: 5px;
+             color: #FF0000;
+        }
+        .floating-penalty-sqrt {
+            color: yellow;
+            text-shadow: 0 0 10px red;
+        }
+        @keyframes fade-out-up {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; } 
+        }
+        #level-up-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em; 
+            font-weight: extra-bold;
+            text-shadow: 0 0 20px #FFD700, 0 0 10px #FF8C00; 
+            color: white;
+            z-index: 120;
+            pointer-events: none; 
+            opacity: 0;
+            transition: opacity 2s; 
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .level-up-visible {
+            opacity: 1 !important;
+        }
+        .level-up-char {
+            display: inline-block; 
+            animation: letter-wave 1s infinite alternate ease-in-out;
+            transform-origin: bottom; 
+        }
+        .wavy-text {
+            white-space: nowrap; 
+            display: inline-block; 
+        }
+        #player {
+            position: absolute;
+            width: auto; 
+            height: auto; 
+            text-align: center;
+            font-weight: bold;
+            background-color: transparent; 
+            color: white; 
+            z-index: 50; 
+            padding: 0;
+            white-space: nowrap; 
+            transition: transform 0.1s; 
+        }
+        #player-value { 
+            display: block; 
+            font-size: 1.2em; 
+            padding: 5px 10px; 
+            line-height: 1em;
+            text-shadow: 0 0 5px #00FFFF; 
+            background-color: rgba(0, 0, 0, 0.3); 
+            border-radius: 0; 
+            color: white; 
+        }
+        #player-name-top, #player-name-bottom { 
+            display: block; 
+            font-size: 0.7em; 
+            font-weight: normal; 
+            color: white; 
+            margin-top: 2px;
+            text-shadow: 0 0 3px black; 
+        }
+        #score, #timer, #current-level { 
+            position: absolute; 
+            padding: 10px; 
+            font-size: 1.2em; 
+            background: rgba(0, 0, 0, 0.5); 
+            border-radius: 5px; 
+            z-index: 100; 
+        }
+        #score { top: 10px; left: 10px; }
+        #current-level { top: 60px; left: 10px; font-weight: bold; color: yellow; } 
+        #timer { top: 10px; right: 10px; }
+        #player-scoreboard {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            z-index: 100;
+            text-align: left;
+            font-size: 0.9em;
+            max-height: 90vh; 
+            overflow-y: auto; 
+            display: none; 
+        }
+        #player-scoreboard h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #00FF00; 
+        }
+        .player-score-entry {
+            margin-bottom: 5px;
+            padding: 3px 5px;
+            border-left: 3px solid transparent; 
+            transition: all 0.2s;
+            white-space: nowrap; 
+        }
+        .player-score-entry.active {
+            border-left: 3px solid lime; 
+            background-color: rgba(255, 255, 255, 0.1); 
+            font-weight: bold;
+        }
+        #controls {
+            position: absolute;
+            bottom: 10px; 
+            left: 10px; 
+            z-index: 100; 
+            background: rgba(0, 0, 0, 0.5); 
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+        }
+        #controls button {
+            padding: 8px 15px;
+            margin-right: 5px;
+            background-color: #333;
+            color: white;
+            border: 1px solid white;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        #pause-button.active {
+            background-color: red !important;
+            color: yellow !important;
+            border: 2px solid yellow !important;
+            font-weight: bold;
+        }
+        #player-select-buttons-inline button {
+            background-color: #007bff;
+            border: 1px solid #0056b3;
+            margin-left: 3px;
+        }
+        #player-select-buttons-inline button.active-player-count {
+            background-color: lime;
+            color: black;
+            font-weight: bold;
+            border: 2px solid yellow;
+        }
+        .falling-object {
+            position: absolute; 
+            width: auto; 
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            border-radius: 0; 
+            padding: 5px 10px; 
+            font-size: 1.2em;
+            white-space: nowrap;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.7); 
+            background-color: transparent; 
+            color: black; 
+            will-change: transform; 
+        }
+        .falling-object[data-type="operator"] {
+            color: orange; 
+            font-size: 1.8em; 
+        }
+        .falling-object[data-type="decimal-fix"] {
+            color: lightgreen;
+            border: none; 
+            padding: 0; 
+            font-size: 1.5em; 
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.7); 
+        }
+        .falling-object[data-type="monster"] {
+            color: #FF0000; 
+            padding: 0; 
+            font-size: 1.8em; 
+            text-shadow: none; 
+            border: none; 
+        }
+        .falling-object[data-type="number"] {
+            font-size: 1.5em;
+        }
+        .bullet {
+            position: absolute;
+            width: 10px; 
+            height: 10px; 
+            background-color: yellow; 
+            border-radius: 50%;
+            z-index: 60; 
+        }
+        #paused-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9); 
+            color: white;
+            font-size: 4em; 
+            font-weight: bold;
+            display: none; 
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 200;
+            pointer-events: all; 
+            text-align: center;
+            padding-top: 5%; 
+            box-sizing: border-box; 
+        }
+        #paused-overlay.visible {
+            display: flex;
+        }
+        .fatal-message {
+            color: red;
+            font-size: 0.7em; 
+            margin-bottom: 20px;
+        }
+        #paused-overlay button {
+            padding: 10px 20px;
+            font-size: 0.5em; 
+            margin: 10px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="game-title">ZerandoVianei</div> 
+    
+    <div id="audio-manager" style="display: none;">
+        <audio id="musica-ambiente" src="musica-ambiente.mp3" loop></audio>
+        <audio id="musica-inicio-bem-vindo" src="musica-inicio-bem-vindo.mp3"></audio>
+        <audio id="musica-pausado" src="musica-pausado.mp3" loop></audio>
+        <audio id="som-quando-zera" src="som-quando-zera.mp3"></audio>
+        <audio id="musica-quando-sobe-nivel" src="musica-quando-sobe-nivel.mp3"></audio>
+        <audio id="morte-colidir-com-caveira" src="morte-colidir-com-caveira.mp3"></audio>
+        <audio id="morte-colidir-numero-negativo-com-raiz" src="morte-colidir-numero-negativo-com-raiz.mp3"></audio>
+        <audio id="morte-extrapolar-tolerancia" src="morte-extrapolar-tolerancia.mp3"></audio>
+        <audio id="musica-quando-morre" src="musica-quando-morre.mp3"></audio>
+        <audio id="som-colisao-numero" src="som-colisao-numero.mp3"></audio>
+        <audio id="som-colisao-sinal-matematico" src="som-colisao-sinal-matematico.mp3"></audio>
+        <audio id="som-colisao-monstro" src="som-colisao.monstro.mp3"></audio>
+        <audio id="tiro-contra-numero" src="tiro-contra-numero.mp3"></audio>
+        <audio id="entrar-condicao-decimal" src="entrar-condicao-decimal.mp3"></audio>
+        <audio id="sair-condicao-decimal" src="sair-condicao-decimal.mp3"></audio>
+        <audio id="som-quando-vira-numero-positivo" src="som-quando-vira-numero-positivo.mp3"></audio>
+        <audio id="som-quando-vira-numero-negativo" src="som-quando-vira-numero-negativo.mp3"></audio>
+        <audio id="som-clique-sair-jogo" src="som-clique-sair-jogo.mp3"></audio>
+    </div>
+    <div id="game-area">
+        <div id="event-feedback"></div> 
+        <div id="score">Pontuação: 0</div>
+        <div id="current-level">Nível: 1</div>
+        <div id="timer">Tempo: 00:00:00</div>
+        <div id="player-scoreboard"></div> 
+
+        <div id="controls">
+            <button id="pause-button">PAUSAR</button>
+            <button id="reset-button">REINICIAR</button>
+            
+            <span style="margin-left: 15px; margin-right: 5px; font-weight: bold; font-size: 0.9em;">JOGAR COM:</span>
+            <span id="player-select-buttons-inline">
+                </span>
+            
+            <button id="tutorial-button" style="margin-left: 15px;">TUTORIAL</button>
+        </div>
+        
+        <div id="player">
+            <span id="player-value">83</span>
+            <span id="player-name-top">JOGADOR</span>
+            <span id="player-name-bottom">NÍVEL: 1</span>
+        </div>
+        
+        <div id="paused-overlay">PAUSADO</div> 
+        
+        <div id="level-up-message"></div>
+        
+    </div>
+
+    <script>
+        // --- VARIÁVEIS DE ESTADO E ELEMENTOS DO DOM ---
+        const playerContainer = document.getElementById('player');
+        const playerValueElement = document.getElementById('player-value');
+        const scoreElement = document.getElementById('score');
+        const currentLevelElement = document.getElementById('current-level'); 
+        const gameArea = document.getElementById('game-area');
+        const pauseButton = document.getElementById('pause-button');
+        const pausedOverlay = document.getElementById('paused-overlay');
+        const eventFeedback = document.getElementById('event-feedback'); 
+        const levelUpMessage = document.getElementById('level-up-message'); 
+        const timerElement = document.getElementById('timer');
+        const playerNameTopElement = document.getElementById('player-name-top');
+        const playerNameBottomElement = document.getElementById('player-name-bottom');
+        const playerSelectButtonsContainer = document.getElementById('player-select-buttons-inline');
+        const playerScoreboard = document.getElementById('player-scoreboard');
+        const gameTitleElement = document.querySelector('.game-title'); 
+        
+        let lastPlayerSign = 1; 
+        let isDecimalState = false; 
+
+        // VARIÁVEIS DO NOVO MODO JOGADOR (6 PLAYERS)
+        let MAX_PLAYERS = 1; 
+        let currentPlayerIndex = 1; 
+        let playerStates = []; 
+        // FIM - VARIÁVEIS DO NOVO MODO JOGADOR
+
+        // Variáveis de Jogo
+        let isGameOver = false;
+        let isPaused = false; 
+        let playerScore = 0;
+        let playerValue = 0; 
+        let gameTime = 0;
+        let level = 1;
+        
+        const MAX_TOLERANCE = 100;
+        const MIN_TOLERANCE = -100;
+
+        // Loops e Arrays
+        let gameLoopInterval;
+        let timerIntervalId;
+        let objectCreationInterval; 
+        const fallingObjects = []; 
+        const bullets = []; 
+
+        const FALLING_OPERATORS = [
+            { type: 'number', sign: "+N", points: 0, operator: 'add', isFatal: false, isMonster: false }, 
+            { type: 'operator', sign: "x", points: 0, operator: 'mul', isFatal: false, isMonster: false }, 
+            { type: 'operator', sign: "/", points: 0, operator: 'div', isFatal: false, isMonster: false }, 
+            { type: 'operator', sign: "pow", points: 0, operator: 'pow', isFatal: false, isMonster: false }, 
+            { type: 'operator', sign: "√", points: 0, operator: 'sqrt', isFatal: false, isMonster: false },
+            { type: 'monster', sign: "💀", points: 7, isFatal: true, isMonster: true }, 
+            { type: 'monster', sign: "😈", points: 6, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "🦁", points: 5, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "🧙‍♀️", points: 4, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "🧛", points: 3, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "👽", points: 2, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "👻", points: 1, isFatal: false, isMonster: true }  
+        ];
+        
+        // --- FUNÇÕES DE GERENCIAMENTO DE ÁUDIO (CORRIGIDO PARA AUTOPLAY) ---
+        const audioElements = {};
+        const musicPlayer = document.getElementById('musica-ambiente');
+        const musicGameOver = document.getElementById('musica-quando-morre');
+        const musicLevelUp = document.getElementById('musica-quando-sobe-nivel');
+        const musicPaused = document.getElementById('musica-pausado');
+
+        function initializeAudio() {
+            const manager = document.getElementById('audio-manager');
+            manager.querySelectorAll('audio').forEach(audio => {
+                audioElements[audio.id] = audio;
+            });
+            // Não tenta tocar a música aqui
+        }
+        
+        // NOVO: Função para desbloquear o áudio no primeiro evento do usuário
+        function unlockAudio() {
+            // Tenta tocar a música principal
+            if (musicPlayer && musicPlayer.paused) {
+                startMusic(musicPlayer);
+            }
+            // Remove os listeners para que não tente desbloquear novamente
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+        }
+
+        function playFx(id) {
+            const audio = audioElements[id];
+            if (audio) {
+                // Toca o som do início para permitir vários sons ao mesmo tempo
+                audio.currentTime = 0; 
+                audio.play().catch(e => console.log('Áudio Play Falhou (Permissão/AutoPlay):', id, e));
+            }
+        }
+
+        function startMusic(musicElement) {
+            stopAllMusic();
+            if (musicElement) {
+                musicElement.volume = 0.5; 
+                // Tenta tocar, mas agora só é chamado após interação
+                musicElement.play().catch(e => console.log('Música Play Falhou.'));
+            }
+        }
+
+        function stopAllMusic() {
+            [musicPlayer, musicGameOver, musicLevelUp, musicPaused].forEach(m => {
+                if (m) {
+                    m.pause();
+                    m.currentTime = 0;
+                }
+            });
+        }
+        // --- FIM FUNÇÕES DE ÁUDIO ---
+
+        // --- FUNÇÕES DE SETUP DO TÍTULO EM ONDA ---
+        function initializeWavyTitle(element, text) {
+            element.innerHTML = ''; 
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charSpan = document.createElement('span');
+                
+                if (char === ' ') {
+                    charSpan.innerHTML = '&nbsp;'; 
+                } else {
+                    charSpan.textContent = char;
+                    charSpan.classList.add('title-char'); 
+                    charSpan.style.animationDelay = `${i * 0.1}s`; 
+                }
+                
+                element.appendChild(charSpan);
+            }
+        }
+        
+        // --- FUNÇÕES DE GERENCIAMENTO DE ESTADO E TURNO ---
+        
+        function initializePlayerStates(count) {
+            MAX_PLAYERS = count;
+            playerStates = [];
+            for (let i = 1; i <= MAX_PLAYERS; i++) {
+                playerStates.push({
+                    id: i,
+                    name: `JOGADOR ${i}`,
+                    level: 1,
+                    score: 0,
+                    value: generateNewPlayerValue()
+                });
+            }
+        }
+
+        function updateScoreboard() {
+            if (MAX_PLAYERS < 2) { 
+                playerScoreboard.style.display = 'none';
+                return;
+            }
+            playerScoreboard.style.display = 'block';
+            playerScoreboard.innerHTML = '<h3>NÍVEIS CONQUISTADOS</h3>'; 
+            
+            const sortedStates = [...playerStates].sort((a, b) => b.level - a.level);
+
+            sortedStates.forEach(state => {
+                const entry = document.createElement('div');
+                entry.classList.add('player-score-entry');
+                if (state.id === currentPlayerIndex) {
+                    entry.classList.add('active'); 
+                }
+                
+                entry.innerHTML = `
+                    **${state.name}**: NÍVEL **${state.level}**
+                `;
+                playerScoreboard.appendChild(entry);
+            });
+        }
+        
+        function saveCurrentPlayerState() {
+            if (currentPlayerIndex > MAX_PLAYERS) return;
+
+            playerStates[currentPlayerIndex - 1].level = level;
+            playerStates[currentPlayerIndex - 1].score = playerScore;
+            playerStates[currentPlayerIndex - 1].value = playerValue; 
+        }
+
+        function loadCurrentPlayerState() {
+            if (currentPlayerIndex > MAX_PLAYERS) return;
+            
+            const state = playerStates[currentPlayerIndex - 1];
+            
+            level = state.level;
+            playerScore = state.score;
+            playerValue = state.value;
+
+            playerNameTopElement.textContent = state.name;
+            playerNameBottomElement.textContent = `NÍVEL: ${level}`;
+            updateLevelDisplay(); 
+            updateScore(0); 
+            updatePlayerValue(playerValue); 
+            
+            gameTime = 0; 
+            timerElement.textContent = `Tempo: ${formatTime(0)}`; 
+            
+            updateScoreboard(); 
+            updatePlayerSelectButtonActiveState(); 
+        }
+
+        function startNextPlayerTurn(savePreviousState = true) {
+            if (MAX_PLAYERS === 0) return;
+            
+            playFx('som-clique-sair-jogo'); 
+
+            if (savePreviousState) {
+                saveCurrentPlayerState(); 
+            }
+            
+            currentPlayerIndex = (currentPlayerIndex % MAX_PLAYERS) + 1;
+
+            loadCurrentPlayerState();
+            
+            endLoopsAndCleanup(); 
+            isPaused = false; 
+            pauseButton.classList.remove('active'); 
+            pausedOverlay.classList.remove('visible');
+            startGameTurn(); 
+        }
+
+        function selectPlayerCount(count) {
+             playFx('som-clique-sair-jogo'); 
+
+            if (MAX_PLAYERS === count) {
+                fullGameReset();
+                return;
+            }
+            
+            initializePlayerStates(count); 
+            currentPlayerIndex = 1; 
+            
+            endLoopsAndCleanup(); 
+            isGameOver = false; pausedOverlay.classList.remove('visible');
+            pauseButton.classList.remove('active'); 
+            loadCurrentPlayerState(); 
+            startGameTurn(); 
+            
+            playerContainer.style.transform = 'scale(1)'; 
+        }
+        
+        function fullGameReset() {
+            playFx('som-clique-sair-jogo'); 
+
+            initializePlayerStates(MAX_PLAYERS); 
+            currentPlayerIndex = 1;
+            endLoopsAndCleanup(); 
+            isGameOver = false; pausedOverlay.classList.remove('visible');
+            pauseButton.classList.remove('active'); 
+            
+            loadCurrentPlayerState(); 
+            startGameTurn(); 
+        }
+        
+        // --- FUNÇÕES DE SETUP E CONTROLE ---
+        function generateNewPlayerValue() { 
+             let value = Math.floor(Math.random() * 101) - 50; 
+            while (value === 0) {
+                 value = Math.floor(Math.random() * 101) - 50; 
+            }
+            return value; 
+        }
+
+        function generateMonsterValue() {
+             let value = Math.floor(Math.random() * 13) - 6; 
+             while (value === 0) {
+                 value = Math.floor(Math.random() * 13) - 6; 
+             }
+             return value;
+        }
+
+        function updateLevelDisplay() { 
+            currentLevelElement.textContent = `Nível: ${level}`; 
+            playerNameBottomElement.textContent = `NÍVEL: ${level}`;
+        }
+        
+        function formatTime(seconds) {
+            const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+            const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+            const s = String(seconds % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function updateTimer() {
+            gameTime++;
+            timerElement.textContent = `Tempo: ${formatTime(gameTime)}`;
+        }
+
+        function togglePause() {
+            if (isGameOver || MAX_PLAYERS === 0) return; 
+            isPaused = !isPaused;
+            if (isPaused) {
+                playFx('som-clique-sair-jogo');
+                endLoopsAndCleanup();
+                startMusic(musicPaused); 
+                pauseButton.textContent = 'CONTINUAR';
+                pauseButton.classList.add('active'); 
+                gameArea.style.cursor = 'default';
+                
+                pausedOverlay.innerHTML = `
+                    <div style="font-size: 1em; margin-bottom: 20px;">PAUSADO</div>
+                    <button onclick="togglePause()" style="font-size: 0.5em; margin: 10px;">CONTINUAR JOGO</button>
+                    <button onclick="selectPlayerCount(1)" style="font-size: 0.5em; margin: 10px; background-color: darkred; border: 1px solid white;">REINICIAR (1 JOGADOR)</button>
+                `;
+                pausedOverlay.classList.add('visible');
+            } else {
+                 playFx('som-clique-sair-jogo');
+                 startMusic(musicPlayer);
+                pausedOverlay.classList.remove('visible');
+                startGameTurn();
+            }
+        }
+
+        function startGameTurn() {
+             startMusic(musicPlayer); 
+            if (isGameOver) return; 
+            gameLoopInterval = setInterval(gameLoop, 1000 / 60); 
+            timerIntervalId = setInterval(updateTimer, 1000); 
+            objectCreationInterval = setInterval(generateObject, 1500); 
+            isPaused = false; 
+            pauseButton.textContent = 'PAUSAR';
+            pauseButton.classList.remove('active'); 
+            pausedOverlay.classList.remove('visible'); 
+            gameArea.style.cursor = 'none'; 
+            playerContainer.style.transform = 'scale(1)'; 
+        }
+
+        function endLoopsAndCleanup() {
+            clearInterval(gameLoopInterval); clearInterval(timerIntervalId);
+            clearInterval(objectCreationInterval);
+            document.querySelectorAll('.bullet, .falling-object').forEach(el => el.remove());
+            fallingObjects.length = 0; bullets.length = 0; 
+            playerContainer.style.transform = 'scale(1)'; 
+        }
+        
+        // --- FUNÇÕES DE COLISÃO FATAL E PASSAGEM DE TURNO ---
+        function handleFatalCollision(title, message, currentLevel, penalizeScore, audioId) {
+            if (MAX_PLAYERS === 0) return; 
+            
+            endLoopsAndCleanup(); isPaused = true;
+            
+            startMusic(musicGameOver);
+            playFx(audioId);
+            
+            saveCurrentPlayerState();
+            
+            const playerFinishedState = playerStates[currentPlayerIndex - 1]; 
+            const finalScoreText = `(Nível Salvo: ${playerFinishedState.level})`; 
+
+            if (penalizeScore) { 
+                playerStates[currentPlayerIndex - 1].level = 1; 
+                playerStates[currentPlayerIndex - 1].score = 0; 
+                playerStates[currentPlayerIndex - 1].value = generateNewPlayerValue();
+            }
+            
+            updateScoreboard();
+            
+            playerValueElement.textContent = '---'; 
+
+            if (MAX_PLAYERS === 1) {
+                pausedOverlay.innerHTML = `
+                    <div class="fatal-message">${title}</div>
+                    <div style="font-size: 0.4em; margin-bottom: 20px;">${playerFinishedState.name} Progresso Salvo: ${finalScoreText}</div>
+                    <div style="font-size: 0.5em; margin-top: 5px; color: yellow;">FIM DE JOGO!</div>
+                    <div style="margin-top: 15px;">
+                        <button id="reset-fatal-button" onclick="fullGameReset()">REINICIAR (1 JOGADOR)</button>
+                    </div>
+                `;
+                pausedOverlay.classList.add('visible'); 
+                pauseButton.classList.add('active'); 
+                gameArea.style.cursor = 'default'; 
+                playerContainer.style.transform = 'scale(0)'; 
+                return;
+            }
+
+            const nextPlayerIndex = (currentPlayerIndex % MAX_PLAYERS) + 1;
+            const nextPlayerState = playerStates[nextPlayerIndex - 1]; 
+            const nextPlayerName = `JOGADOR ${nextPlayerIndex}`;
+            const nextPlayerStartText = `NÍVEL ${nextPlayerState.level}`; 
+
+
+            pausedOverlay.innerHTML = `
+                <div class="fatal-message">${title}</div>
+                <div style="font-size: 0.4em; margin-bottom: 20px;">
+                    ${playerFinishedState.name} Salvo: ${finalScoreText}
+                    <br><br>
+                    **${nextPlayerName}** carregará o: **${nextPlayerStartText}**
+                </div>
+                <div style="font-size: 0.5em; margin-top: 5px;">A vez é do **${nextPlayerName}**!</div>
+                <div style="margin-top: 15px;">
+                    <button id="next-player-fatal-button" onclick="startNextPlayerTurn(false)">${nextPlayerName}: INICIAR TURNO</button>
+                    <button id="reset-fatal-button" onclick="selectPlayerCount(1)" style="background-color: darkred; border: 1px solid white; margin-top: 10px;">VOLTAR P/ 1 JOGADOR</button>
+                </div>
+            `;
+            pausedOverlay.classList.add('visible'); 
+            pauseButton.classList.add('active'); 
+            gameArea.style.cursor = 'default'; 
+            playerContainer.style.transform = 'scale(0)'; 
+        }
+        
+        // Função para Level Up com efeito de onda
+        function applyWavyText(element, text) {
+            element.innerHTML = ''; 
+            const container = document.createElement('span');
+            container.classList.add('wavy-text'); 
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charSpan = document.createElement('span');
+                
+                if (char === ' ') {
+                    charSpan.innerHTML = '&nbsp;'; 
+                } else {
+                    charSpan.textContent = char;
+                    charSpan.classList.add('level-up-char');
+                    charSpan.style.animationDelay = `${i * 0.1}s`; 
+                }
+                
+                container.appendChild(charSpan);
+            }
+            element.appendChild(container);
+        }
+
+        function levelUp() {
+            if (MAX_PLAYERS === 0) return;
+            
+            playFx('som-quando-zera');
+            startMusic(musicLevelUp); 
+
+            level++; updateLevelDisplay(); endLoopsAndCleanup(); isPaused = true;
+            pauseButton.classList.add('active'); 
+            
+            saveCurrentPlayerState(); 
+            playerStates[currentPlayerIndex - 1].value = generateNewPlayerValue(); 
+            
+            const playerFinishedState = playerStates[currentPlayerIndex - 1];
+            const finalScoreText = `NÍVEL ${level-1} alcançado!`; 
+            
+            const nextPlayerIndex = (currentPlayerIndex % MAX_PLAYERS) + 1;
+            const nextPlayerState = playerStates[nextPlayerIndex - 1]; 
+            const nextPlayerName = `JOGADOR ${nextPlayerIndex}`;
+            const nextPlayerStartText = `NÍVEL ${nextPlayerState.level}`; 
+
+            const messageText = `${playerFinishedState.name} CONCLUIU o NÍVEL ${level-1}!`;
+            
+            applyWavyText(levelUpMessage, messageText); 
+            levelUpMessage.classList.add('level-up-visible');
+            
+            updateScoreboard(); 
+            
+            setTimeout(() => {
+                levelUpMessage.classList.remove('level-up-visible');
+                
+                pausedOverlay.innerHTML = `
+                    <div style="color: lime; font-size: 0.8em; margin-bottom: 5px;">🎉 ${finalScoreText} 🎉</div>
+                    <div style="font-size: 0.4em; margin-bottom: 20px; font-weight: normal;">
+                        ${playerFinishedState.name} Salvo: ${finalScoreText}
+                        <br><br>
+                        **${nextPlayerName}** carregará o: **${nextPlayerStartText}**
+                    </div>
+                    <div style="font-size: 0.5em; margin-top: 5px;">A vez é do **${nextPlayerName}**!</div>
+                    <div style="margin-top: 15px;">
+                        <button id="next-player-level-up-button" onclick="startNextPlayerTurn(false)">${nextPlayerName}: INICIAR TURNO</button>
+                        <button id="reset-level-up-button" onclick="selectPlayerCount(1)" style="background-color: darkred; border: 1px solid white; margin-top: 10px;">VOLTAR P/ 1 JOGADOR</button>
+                    </div>
+                `;
+                pausedOverlay.classList.add('visible');
+                
+            }, 4000); 
+        }
+        
+        function handleToleranceBreak(value) {
+            handleFatalCollision(
+                `VALOR ${value.toFixed(2)}! TOLERÂNCIA ULTRAPASSADA!`,
+                `O Valor do Jogador (${value.toFixed(2)}) ultrapassou os limites de ${MIN_TOLERANCE} ou ${MAX_TOLERANCE}.`,
+                level, true,
+                'morte-extrapolar-tolerancia' 
+            );
+        }
+        function showFeedbackMessage(message, color = 'red') {
+            clearTimeout(window.feedbackTimeout); eventFeedback.textContent = message;
+            eventFeedback.style.borderColor = color; eventFeedback.style.color = color;
+            eventFeedback.style.opacity = 1; 
+            window.feedbackTimeout = setTimeout(() => { eventFeedback.style.opacity = 0; }, 300); 
+        }
+        function showFloatingPenalty(x, y, value, emoji, isSqrtPenalty = false) {
+             const feedbackDiv = document.createElement('div');
+            feedbackDiv.classList.add('floating-feedback');
+            
+            let displayValue = Number.isInteger(value) ? value.toString() : value.toFixed(2);
+            if (value > 0) displayValue = `+${displayValue}`;
+            
+            if (isSqrtPenalty) { feedbackDiv.classList.add('floating-penalty-sqrt'); feedbackDiv.innerHTML = `<span class="monster-value">√</span>RAIZ NEGATIVA!`; } 
+            else { 
+                feedbackDiv.innerHTML = `<span class="monster-value">${emoji}</span>Perdeu ${Math.abs(value)}!`; 
+            }
+            feedbackDiv.style.left = `${x}px`; feedbackDiv.style.top = `${y}px`;
+            gameArea.appendChild(feedbackDiv);
+            setTimeout(() => { feedbackDiv.remove(); }, 3000); 
+        }
+        
+        function checkCollision(element1, element2) {
+            const rect1 = element1.getBoundingClientRect();
+            const rect2 = element2.getBoundingClientRect();
+            const tolerance = 5; 
+
+            return (
+                rect1.left + tolerance < rect2.right - tolerance && 
+                rect1.right - tolerance > rect2.left + tolerance &&
+                rect1.top + tolerance < rect2.bottom - tolerance &&  
+                rect1.bottom - tolerance > rect2.top + tolerance   
+            );
+        }
+
+        // --- LÓGICA MATEMÁTICA ---
+        
+        function toPrecision(value, decimals) {
+            const factor = Math.pow(10, decimals);
+            return Math.round(value * factor) / factor;
+        }
+
+        function updatePlayerValue(value) {
+            const oldPlayerValue = playerValue;
+            playerValue = toPrecision(value, 3); 
+            
+            let displayValue = Number.isInteger(playerValue) ? playerValue.toString() : playerValue.toFixed(3);
+            
+            if (!Number.isInteger(playerValue)) {
+                displayValue = displayValue.replace(/0+$/, '').replace(/\.$/, '');
+            }
+            
+            playerValueElement.textContent = displayValue; 
+            
+            if (playerValue > 0) { playerValueElement.style.color = 'lime'; } 
+            else if (playerValue < 0) { playerValueElement.style.color = 'cyan'; } 
+            else { playerValueElement.style.color = 'white'; }
+            
+            // NOVO: Verificação de Sinal
+            const currentPlayerSign = Math.sign(playerValue) || 1;
+            if (currentPlayerSign !== lastPlayerSign && Math.abs(playerValue) > 0) {
+                 if (currentPlayerSign === 1) { playFx('som-quando-vira-numero-positivo'); } 
+                 else { playFx('som-quando-vira-numero-negativo'); }
+                 lastPlayerSign = currentPlayerSign;
+            }
+            
+            // NOVO: Verificação de Estado Decimal
+            const newIsDecimal = Math.abs(playerValue - Math.round(playerValue)) > 0.001; 
+            if (newIsDecimal !== isDecimalState) {
+                if (newIsDecimal) { playFx('entrar-condicao-decimal'); } 
+                // Saiu do decimal é tratado na coleta do decimal-fix
+                isDecimalState = newIsDecimal;
+            }
+
+            if (Math.abs(playerValue) < 0.001) { 
+                playerValue = 0; 
+                playerValueElement.textContent = '0';
+                levelUp();
+            }
+            
+            updateScoreboard(); 
+        }
+
+        function updateScore(points) {
+            playerScore += points;
+            if (playerScore < 0) { playerScore = 0; }
+            scoreElement.textContent = `Pontuação: ${Math.floor(playerScore)}`;
+        }
+
+        function applyOperator(playerVal, operatorType, operand, exponent = 0, multiplierOrDivisor = 0, monsterValue = 0) {
+            let result = playerVal;
+            
+            switch (operatorType) {
+                case 'number': 
+                case 'decimal-fix': 
+                case 'add':
+                    result += operand;
+                    break;
+                case 'mul':
+                    result *= multiplierOrDivisor; 
+                    break;
+                case 'div':
+                    if (multiplierOrDivisor === 0) {
+                         result = 0; 
+                    } else {
+                        result /= multiplierOrDivisor;
+                    }
+                    break;
+                case 'pow':
+                    result = Math.pow(result, exponent); 
+                    break;
+                case 'sqrt':
+                    if (playerVal < 0) {
+                        return { result: playerVal, isFatalSqrt: true };
+                    }
+                    result = Math.sqrt(playerVal);
+                    break;
+                case 'monster':
+                    result -= monsterValue; 
+                    break;
+            }
+            return { result: result, isFatalSqrt: false };
+        }
+        
+        // --- FUNÇÕES DE CRIAÇÃO DE OBJETOS ---
+        function generateObject() {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            
+            const rand = Math.random();
+            if (rand < 0.50) { 
+                 createFallingNumber();
+            } else if (rand < 0.75) { 
+                 const operators = FALLING_OPERATORS.filter(op => op.type !== 'number' && !op.isMonster);
+                 const operatorData = operators[Math.floor(Math.random() * operators.length)];
+                 createFallingOperator(operatorData);
+            } else { 
+                const monsterData = FALLING_OPERATORS.filter(op => op.isMonster);
+                const chosenMonster = monsterData[Math.floor(Math.random() * monsterData.length)];
+                
+                if (Math.random() < 0.30 && chosenMonster.isFatal === false) {
+                    createParabolicMonster(chosenMonster);
+                } else {
+                    createFallingOperator(chosenMonster); 
+                }
+            }
+        }
+        
+        function createFallingNumber() { 
+            let value = Math.floor(Math.random() * 101) - 50; 
+            while (value === 0) {
+                 value = Math.floor(Math.random() * 101) - 50; 
+            }
+            
+            const objectDiv = document.createElement('div');
+            objectDiv.classList.add('falling-object');
+            objectDiv.dataset.type = 'number';
+            objectDiv.textContent = value; 
+            objectDiv.dataset.value = value;
+            objectDiv.dataset.points = 0; 
+            objectDiv.dataset.operator = 'number'; 
+            objectDiv.dataset.isFatal = 'false'; 
+            if (value > 0) { objectDiv.style.color = 'lime'; } 
+            else if (value < 0) { objectDiv.style.color = 'cyan'; } 
+            
+            setObjectMovementVars(objectDiv);
+            gameArea.appendChild(objectDiv);
+            fallingObjects.push(objectDiv);
+        }
+        
+        function createFallingOperator(operatorData) {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            
+            const objectDiv = document.createElement('div');
+            objectDiv.classList.add('falling-object');
+            objectDiv.dataset.type = operatorData.isMonster ? 'monster' : 'operator';
+            
+            let displaySign = operatorData.sign;
+            let exponent = 0;
+            let multiplierOrDivisor = 0;
+            let monsterValue = 0;
+
+            if (operatorData.isMonster) {
+                monsterValue = generateMonsterValue();
+                objectDiv.dataset.monsterValue = monsterValue; 
+            } else if (operatorData.operator === 'pow') {
+                const factor = Math.random() < 0.5 ? 2 : 3;
+                exponent = factor; 
+                displaySign = `x${exponent === 2 ? '²' : '³'}`;
+                objectDiv.dataset.exponent = exponent; 
+            } else if (operatorData.operator === 'mul') {
+                const factor = Math.random() < 0.5 ? 2 : 3;
+                multiplierOrDivisor = factor;
+                displaySign = `x${multiplierOrDivisor}`;
+                objectDiv.dataset.multiplierordivisor = multiplierOrDivisor; 
+            } else if (operatorData.operator === 'div') {
+                const factor = Math.random() < 0.5 ? 2 : 3;
+                multiplierOrDivisor = factor;
+                displaySign = `/${multiplierOrDivisor}`;
+                objectDiv.dataset.multiplierordivisor = multiplierOrDivisor; 
+            }
+
+            objectDiv.textContent = displaySign; 
+            objectDiv.dataset.value = 0; 
+            objectDiv.dataset.points = operatorData.points; 
+            objectDiv.dataset.operator = operatorData.isMonster ? 'monster' : operatorData.operator; 
+            objectDiv.dataset.isFatal = operatorData.isFatal ? 'true' : 'false'; 
+            
+            setObjectMovementVars(objectDiv);
+            gameArea.appendChild(objectDiv);
+            fallingObjects.push(objectDiv);
+        }
+
+        function createParabolicMonster(monsterData) {
+            const objectDiv = document.createElement('div');
+            objectDiv.classList.add('falling-object');
+            objectDiv.dataset.type = 'monster';
+            
+            const monsterValue = generateMonsterValue();
+            objectDiv.dataset.monsterValue = monsterValue; 
+            
+            objectDiv.textContent = monsterData.sign; 
+            objectDiv.dataset.value = 0; 
+            objectDiv.dataset.points = monsterData.points; 
+            objectDiv.dataset.operator = 'monster'; 
+            objectDiv.dataset.isFatal = 'false'; 
+            objectDiv.dataset.movementType = 'parabolic'; 
+
+            setObjectMovementVars(objectDiv, false, true); 
+            gameArea.appendChild(objectDiv);
+            fallingObjects.push(objectDiv);
+        }
+
+        function createDecimalFix(x, y, currentValue) {
+            const isDecimal = Math.abs(currentValue - Math.round(currentValue)) > 0.001; 
+            if (!isDecimal) {
+                 return; 
+            }
+
+            const targetInteger = Math.round(currentValue);
+            const rawCorrection = targetInteger - currentValue;
+            
+            const finalCorrection = toPrecision(rawCorrection, 3);
+            
+            const objectDiv = document.createElement('div');
+            objectDiv.classList.add('falling-object');
+            objectDiv.dataset.type = 'decimal-fix';
+            
+            let correctionDisplay = finalCorrection.toFixed(3);
+            if (finalCorrection >= 0) correctionDisplay = `+${correctionDisplay}`;
+            
+            correctionDisplay = correctionDisplay.replace(/0+$/, '').replace(/\.$/, '');
+            objectDiv.textContent = correctionDisplay; 
+            
+            objectDiv.dataset.value = finalCorrection; 
+            objectDiv.dataset.points = 0; 
+            objectDiv.dataset.operator = 'decimal-fix'; 
+            objectDiv.dataset.isFatal = 'false'; 
+
+            objectDiv.dataset.initialX = x;
+            objectDiv.dataset.y = y; 
+            
+            setObjectMovementVars(objectDiv, true); 
+            
+            gameArea.appendChild(objectDiv);
+            fallingObjects.push(objectDiv);
+            showFeedbackMessage(`CORREÇÃO LIBERADA: ${correctionDisplay}`, 'yellow');
+        }
+        
+        function setObjectMovementVars(objectDiv, generatedMidScreen = false, fromSide = false) {
+            const minSpeed = 0.5; 
+            const maxSpeed = 1.50;
+            const randomSpeed = Math.random() * (maxSpeed - minSpeed) + minSpeed;
+            const randomAmplitude = Math.random() * (50 - 20) + 20;
+            const randomOffset = Math.random() * 2 * Math.PI; 
+            
+            let initialX;
+            let initialY;
+            
+            if (generatedMidScreen) {
+                initialX = parseFloat(objectDiv.dataset.initialX);
+                initialY = parseFloat(objectDiv.dataset.y);
+                objectDiv.dataset.fallSpeed = 0.5; 
+            } else if (fromSide) {
+                initialY = Math.random() * (window.innerHeight / 2); 
+                const isLeft = Math.random() < 0.5;
+                initialX = isLeft ? -50 : window.innerWidth + 50; 
+                objectDiv.dataset.fallSpeed = randomSpeed;
+                objectDiv.dataset.parabolicDirection = isLeft ? 1 : -1; 
+                objectDiv.dataset.parabolicInitialX = initialX;
+                objectDiv.dataset.parabolicInitialY = initialY;
+                
+                objectDiv.dataset.parabolicXVelocity = (Math.random() * 2 + 1 + (level * 0.5)) * objectDiv.dataset.parabolicDirection;
+                objectDiv.dataset.parabolicYVelocity = randomSpeed;
+                objectDiv.dataset.timeInAir = 0; 
+            } else {
+                initialX = window.innerWidth * Math.random(); 
+                initialY = -100; 
+                objectDiv.dataset.fallSpeed = randomSpeed;
+            }
+
+            objectDiv.dataset.initialX = initialX; 
+            objectDiv.dataset.y = initialY; 
+            objectDiv.dataset.waveAmplitude = randomAmplitude; 
+            objectDiv.dataset.waveOffset = randomOffset; 
+            objectDiv.dataset.scale = 1; 
+            
+            objectDiv.style.transform = `translate(${initialX}px, ${initialY}px) scale(1)`;
+        }
+
+        // --- LÓGICA DE COLISÃO DO JOGADOR (CORPO) ---
+        function checkPlayerCollision(obj, index) {
+            if (!checkCollision(playerValueElement, obj)) {
+                return false;
+            }
+            
+            const operatorType = obj.dataset.operator;
+            const value = parseFloat(obj.dataset.value); 
+            const exponent = parseInt(obj.dataset.exponent) || 0; 
+            const multiplierOrDivisor = parseInt(obj.dataset.multiplierordivisor) || 0; 
+            const monsterValue = parseInt(obj.dataset.monsterValue) || 0; 
+            
+            if (obj.dataset.type === 'number' || obj.dataset.type === 'operator' || obj.dataset.type === 'decimal-fix') {
+                
+                const { result: newPlayerValue, isFatalSqrt } = applyOperator(playerValue, operatorType, value, exponent, multiplierOrDivisor); 
+                
+                if (isFatalSqrt) {
+                    obj.remove(); fallingObjects.splice(index, 1);
+                    const monsterRect = obj.getBoundingClientRect(); 
+                    showFloatingPenalty(monsterRect.left + monsterRect.width / 2, monsterRect.top, 0, '√', true);
+                    handleFatalCollision("COLISÃO FATAL: RAIZ NEGATIVA!", `Colidir com Raiz Quadrada (√) com um valor negativo (${playerValueElement.textContent}) resulta em morte!`, level, true, 'morte-colidir-numero-negativo-com-raiz');
+                    return true;
+                }
+                
+                if (obj.dataset.type === 'decimal-fix') {
+                    const finalCorrection = parseFloat(obj.dataset.value);
+                    const targetValue = playerValue + finalCorrection;
+                    updatePlayerValue(Math.round(targetValue)); 
+                    showFeedbackMessage(`CORREÇÃO APLICADA. VALOR AGORA É INTEIRO.`, 'lime');
+                    playFx('sair-condicao-decimal');
+                } else {
+                    updatePlayerValue(newPlayerValue); 
+                    
+                    let feedbackText;
+                    if (operatorType === 'number') {
+                         feedbackText = `COLETADO: ${value > 0 ? '+' : ''}${value}`;
+                         playFx('som-colisao-numero');
+                    } else {
+                         feedbackText = `OPERADOR: ${obj.textContent}`;
+                         playFx('som-colisao-sinal-matematico');
+                    }
+                    if (feedbackText) showFeedbackMessage(feedbackText, 'orange');
+                }
+
+                obj.remove();
+                fallingObjects.splice(index, 1);
+                
+                if (newPlayerValue > MAX_TOLERANCE || newPlayerValue < MIN_TOLERANCE) {
+                    handleToleranceBreak(newPlayerValue);
+                }
+
+                return true; 
+            }
+
+            if (obj.dataset.type === 'monster') {
+                
+                const pointsLost = parseInt(obj.dataset.points);
+                const monsterEmoji = obj.textContent; 
+                
+                if (obj.dataset.isFatal === 'true') {
+                    obj.remove(); fallingObjects.splice(index, 1);
+                    handleFatalCollision("MORREU!", "Colisão Fatal com a Caveira.", level, true, 'morte-colidir-com-caveira');
+                    return true;
+                } else {
+                    
+                    const monsterDamage = monsterValue; 
+                    const { result: newPlayerValue } = applyOperator(playerValue, operatorType, 0, 0, 0, monsterDamage); 
+
+                    updateScore(-pointsLost); 
+                    updatePlayerValue(newPlayerValue);
+                    playFx('som-colisao-monstro'); 
+
+                    obj.remove(); fallingObjects.splice(index, 1);
+                    
+                    const monsterRect = obj.getBoundingClientRect(); 
+                    showFloatingPenalty(monsterRect.left + monsterRect.width / 2, monsterRect.top, monsterDamage, monsterEmoji);
+
+                    if (newPlayerValue > MAX_TOLERANCE || newPlayerValue < MIN_TOLERANCE) {
+                        handleToleranceBreak(newPlayerValue);
+                    }
+                    
+                    playerContainer.style.transform = 'scale(0.8)';
+                    setTimeout(() => { playerContainer.style.transform = 'scale(1)'; }, 100);
+
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // --- LÓGICA DE TIRO (Geração do Conserta-Decimal) ---
+        gameArea.addEventListener('click', (e) => {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return; 
+            
+            playFx('tiro-contra-numero'); // Som de Tiro
+
+            const bullet = document.createElement('div');
+            bullet.classList.add('bullet');
+            const playerRect = playerContainer.getBoundingClientRect();
+            
+            bullet.style.left = `${playerRect.left + playerRect.width / 2 - 5}px`; 
+            bullet.style.top = `${playerRect.top}px`; 
+            
+            gameArea.appendChild(bullet);
+            bullets.push(bullet);
+        });
+
+        function checkBulletCollision(bullet, index) {
+            
+             for (let j = fallingObjects.length - 1; j >= 0; j--) {
+                const obj = fallingObjects[j];
+                
+                if (checkCollision(bullet, obj)) {
+                    
+                    const objType = obj.dataset.type;
+                    
+                    if (objType === 'monster') {
+                        const isDecimal = Math.abs(playerValue - Math.round(playerValue)) > 0.001; 
+                        const isFatal = obj.dataset.isFatal === 'true';
+                        const pointsGained = parseInt(obj.dataset.points); 
+                        
+                        const correctionIsFalling = fallingObjects.some(item => item.dataset.type === 'decimal-fix');
+
+                        if (isDecimal && !isFatal && !correctionIsFalling && playerScore >= 50) {
+                             updateScore(-50); 
+                             showFeedbackMessage(`-50 PONTOS (COMPRA DE CORREÇÃO)!`, 'red');
+                             
+                             const monsterRect = obj.getBoundingClientRect();
+                             createDecimalFix(monsterRect.left, monsterRect.top, playerValue); 
+                             
+                        } else if (isDecimal && !isFatal && correctionIsFalling) {
+                            showFeedbackMessage(`CORREÇÃO JÁ ESTÁ CAINDO!`, 'yellow');
+                            updateScore(pointsGained);
+                            showFeedbackMessage(`+${pointsGained} PONTOS!`, 'lime'); 
+                            
+                        } else if (isDecimal && !isFatal && playerScore < 50) {
+                             showFeedbackMessage(`PONTOS INSUFICIENTES (REQUER 50)!`, 'red');
+                            updateScore(pointsGained);
+                            showFeedbackMessage(`+${pointsGained} PONTOS!`, 'lime'); 
+                            
+                        } else {
+                            updateScore(pointsGained);
+                            showFeedbackMessage(`+${pointsGained} PONTOS!`, 'lime');
+                        }
+                        
+                    }
+                    
+                    obj.remove();
+                    fallingObjects.splice(j, 1);
+                    bullet.remove();
+                    bullets.splice(index, 1);
+
+                    return true; 
+                }
+             }
+             return false;
+        }
+        
+        // --- FUNÇÕES DE LOOP E MOVIMENTO ---
+        
+        function gameLoop() {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                 const bullet = bullets[i];
+                 let currentY = parseFloat(bullet.style.top);
+                 currentY -= 15; 
+                 bullet.style.top = `${currentY}px`;
+                 
+                 if (checkBulletCollision(bullet, i)) { continue; }
+
+                 if (currentY < 0) { bullet.remove(); bullets.splice(i, 1); }
+             }
+
+            for (let i = fallingObjects.length - 1; i >= 0; i--) {
+                const obj = fallingObjects[i];
+                
+                if (checkPlayerCollision(obj, i)) { continue; }
+
+                let currentY = parseFloat(obj.dataset.y);
+                let currentX;
+                let fallSpeed = parseFloat(obj.dataset.fallSpeed);
+                
+                if (obj.dataset.type !== 'decimal-fix') {
+                    fallSpeed *= level;
+                }
+                
+                if (obj.dataset.movementType === 'parabolic') {
+                    let parabolicInitialX = parseFloat(obj.dataset.initialX); 
+                    let parabolicInitialY = parseFloat(obj.dataset.initialY); 
+                    let parabolicXVelocity = parseFloat(obj.dataset.parabolicXVelocity);
+                    let parabolicYVelocity = parseFloat(obj.dataset.parabolicYVelocity);
+                    let timeInAir = parseFloat(obj.dataset.timeInAir);
+
+                    timeInAir += 0.1; 
+
+                    currentX = parabolicInitialX + parabolicXVelocity * timeInAir * 5; 
+                    currentY = parabolicInitialY + parabolicYVelocity * timeInAir * 10; 
+                    
+                    obj.dataset.timeInAir = timeInAir;
+
+                     if (currentX < -100 || currentX > window.innerWidth + 100) {
+                        obj.remove();
+                        fallingObjects.splice(i, 1);
+                        continue;
+                    }
+
+                } else {
+                    const initialX = parseFloat(obj.dataset.initialX);
+                    const waveAmplitude = parseFloat(obj.dataset.waveAmplitude);
+                    let waveOffset = parseFloat(obj.dataset.waveOffset);
+
+                    currentY += fallSpeed; 
+                    waveOffset += 0.05; 
+                    currentX = initialX + Math.sin(waveOffset) * waveAmplitude; 
+
+                    obj.dataset.waveOffset = waveOffset;
+                }
+
+                obj.dataset.y = currentY; 
+                obj.style.transform = `translate(${currentX}px, ${currentY}px) scale(1)`;
+                
+                if (currentY > window.innerHeight) {
+                    obj.remove();
+                    fallingObjects.splice(i, 1);
+                    continue;
+                }
+            }
+        }
+        
+        // --- FUNÇÕES DE SETUP DA INTERFACE ---
+        
+        function updatePlayerSelectButtonActiveState() {
+            document.querySelectorAll('#player-select-buttons-inline button').forEach(button => {
+                const playerCount = parseInt(button.textContent.match(/\d+/)[0]);
+                if (playerCount === MAX_PLAYERS) {
+                    button.classList.add('active-player-count');
+                } else {
+                    button.classList.remove('active-player-count');
+                }
+            });
+        }
+        
+        function generatePlayerSelectButtons() {
+            playerSelectButtonsContainer.innerHTML = '';
+            for (let i = 1; i <= 6; i++) {
+                const button = document.createElement('button');
+                button.textContent = `${i}`;
+                button.title = `${i} Jogador${i > 1 ? 'es' : ''} (Reinicia o Jogo)`;
+                button.onclick = () => selectPlayerCount(i);
+                playerSelectButtonsContainer.appendChild(button);
+            }
+            updatePlayerSelectButtonActiveState();
+        }
+
+        // --- INICIALIZAÇÃO E CONTROLES DE INTERFACE (CORRIGIDO PARA ÁUDIO) ---
+        window.onload = () => {
+             // Inicializa o Título com o efeito em onda
+             initializeWavyTitle(gameTitleElement, "ZerandoVianei"); 
+
+             document.getElementById('pause-button').onclick = togglePause;
+             document.getElementById('reset-button').onclick = fullGameReset; 
+             
+             document.getElementById('tutorial-button').onclick = () => {
+                 playFx('som-clique-sair-jogo');
+                 alert(
+                     "*** DEDICATÓRIA ***\n" +
+                     "Esse jogo é em homenagem ao querido **Vianei**, que antes tem Jose e depois termina em Gomes, " +
+                     "mas também virou **Vianovski, Vianelo, Viandembrovski**, haja língua, e virou joguinho inteligente " +
+                     "então temos o bacana **ZerandoVianei**. Abraços. vgm.\n\n" + 
+    
+                     "*** TUTORIAL ***\n" + 
+                     "COLETAR NÚMEROS/OPERADORES para tentar **ZERAR** o valor. " +
+                     "Multiplicação: x2 ou x3. Divisão: /2 ou /3. Potenciação: x² ou x³. " +
+                     "**MONSTROS** subtraem um valor aleatório de -6 a 6 e subtraem pontos ao colidir. " +
+                     "Atirar em MONSTROS *não-fatais* com valor decimal e mais de 50 pontos **compra correção decimal por 50pts**; caso contrário, você **GANHA** os pontos do monstro (todos dão pontos). " +
+                     "Alguns monstros não-fatais podem vir das laterais com movimento curvo. " +
+                     "O valor do jogador tem uma precisão máxima de 3 casas decimais."
+                 );
+             };
+             
+             generatePlayerSelectButtons();
+             initializeAudio(); // Inicializa o gerenciador de áudio
+             
+             // Adiciona listeners para desbloquear o áudio no primeiro clique/tecla
+             document.addEventListener('click', unlockAudio, { once: true });
+             document.addEventListener('keydown', unlockAudio, { once: true });
+             
+             selectPlayerCount(1);
+        };
+
+        gameArea.addEventListener('mousemove', (e) => {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            
+            const playerRect = playerContainer.getBoundingClientRect();
+            const playerWidth = playerRect.width; 
+            const playerHeight = playerRect.height; 
+            let newX = e.clientX - playerWidth / 2;
+            let newY = e.clientY - playerHeight / 2;
+            newX = Math.max(0, Math.min(newX, window.innerWidth - playerWidth));
+            newY = Math.max(0, Math.min(newY, window.innerHeight - playerHeight));
+            playerContainer.style.left = `${newX}px`;
+            playerContainer.style.top = `${newY}px`;
+        });
+        
+    </script> 
+</body>
+</html>

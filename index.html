@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZerandoVianei</title>
+    
+    <style>
+        /* --- ESTILOS GERAIS E LAYOUT --- */
+        body {
+            margin: 0;
+            overflow: hidden; 
+            background-color: black;
+            font-family: sans-serif;
+            color: white;
+            text-align: center;
+        }
+        #game-area {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            z-index: 500; 
+        }
+        
+        /* --- TÍTULO EM ONDA (MODIFICADO: Menor e ao lado do relógio) --- */
+        .game-title {
+            position: absolute;
+            top: 10px; /* Alinha com o #timer */
+            right: 180px; /* Move para a direita (ao lado do #timer) */
+            left: auto; /* Remove a centralização horizontal */
+            transform: none; /* Remove a centralização */
+            font-size: 1.5em; /* Reduzido pela metade (3em -> 1.5em) */
+            font-weight: bold;
+            z-index: 1000;
+            pointer-events: none;
+            display: flex; 
+            white-space: nowrap;
+        }
+        .title-char {
+            display: inline-block;
+            animation: letter-wave 3s infinite alternate ease-in-out; 
+            transform-origin: bottom;
+            font-size: 1em; 
+        }
+        @keyframes letter-wave {
+            0% { transform: translateY(0) rotate(-1deg); color: #FF0000; } 
+            33% { color: #FFFF00; } 
+            66% { color: #00FFFF; } 
+            100% { transform: translateY(-15px) rotate(1deg); color: #00FF00; } 
+        }
+
+        /* --- FEEDBACK E MENSAGENS FLUTUANTES (MANTIDO) --- */
+        .floating-feedback {
+            position: absolute;
+            font-size: 2em;
+            font-weight: bold;
+            color: red;
+            text-shadow: 0 0 5px black;
+            opacity: 1;
+            z-index: 105;
+            pointer-events: none; 
+            animation: fade-out-up 3s forwards; 
+            text-align: center;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .floating-penalty-sqrt {
+            color: yellow;
+            text-shadow: 0 0 10px red;
+        }
+        @keyframes fade-out-up {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; } 
+        }
+        #level-up-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em; 
+            font-weight: extra-bold;
+            text-shadow: 0 0 20px #FFD700, 0 0 10px #FF8C00; 
+            color: white;
+            z-index: 120;
+            pointer-events: none; 
+            opacity: 0;
+            transition: opacity 2s; 
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .level-up-visible {
+            opacity: 1 !important;
+        }
+        .level-up-char {
+            display: inline-block; 
+            animation: letter-wave 1s infinite alternate ease-in-out;
+            transform-origin: bottom; 
+        }
+        .wavy-text {
+            white-space: nowrap; 
+            display: inline-block; 
+        }
+
+        /* --- NOVO: ESTILO PARA O TEXTO FLUTUANTE DE MONSTROS --- */
+        .falling-object-label {
+            position: absolute;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: #FF00FF; /* Cor chamativa para o nome */
+            text-shadow: 0 0 5px black;
+            opacity: 1;
+            z-index: 104; /* Acima do objeto caindo (50) e abaixo do feedback (105) */
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* --- JOGADOR E INFORMAÇÕES DE PLACAR --- */
+        #player {
+            position: absolute;
+            width: auto; 
+            height: auto; 
+            text-align: center;
+            font-weight: bold;
+            background-color: transparent; 
+            z-index: 50; 
+            padding: 0;
+            white-space: nowrap; 
+            transition: transform 0.1s; 
+            pointer-events: none; 
+            display: flex; /* Adicionado */
+            flex-direction: column; /* Adicionado */
+            justify-content: center; /* Adicionado */
+            align-items: center; /* Adicionado */
+            font-family: 'Press Start 2P', cursive; /* Adicionado */
+        }
+        
+        #player-value { 
+            display: block; 
+            font-size: 1.2em; 
+            padding: 5px 10px; 
+            line-height: 1em;
+            text-shadow: 0 0 5px #00FFFF; 
+            background-color: rgba(0, 0, 0, 0.3); 
+            border-radius: 0; 
+            color: white; /* Cor inicial (será sobrescrita pelo JS: lime/cyan) */
+        }
+        
+        #player-name-top, #player-name-bottom { 
+            display: block; 
+            font-size: 0.7em; 
+            font-weight: normal; 
+            color: white; 
+            margin-top: 2px;
+            text-shadow: 0 0 3px black; 
+        }
+        
+        /* NOVO ESTILO: Personalização para o texto "Vianei" */
+        #player-name-top {
+            color: yellow; /* Cor Amarela */
+            font-size: 0.7em; /* Letras Pequenas (mantido) */
+            text-transform: lowercase; /* Letras minúsculas */
+            /* CORREÇÃO: Aplicando a rotação vertical */
+            transform: rotate(-90deg);
+            margin-top: 15px; /* Ajuste para compensar a rotação e o layout flex */
+        }
+
+        #score, #timer, #current-level { 
+            position: absolute; 
+            padding: 10px; 
+            font-size: 1.2em; 
+            background: rgba(0, 0, 0, 0.5); 
+            border-radius: 5px; 
+            z-index: 100; 
+        }
+        
+        /* ALTERAÇÃO: Mover #score para o canto superior direito (abaixo do timer) */
+        #score { top: 60px; right: 10px; } 
+        
+        #current-level { top: 60px; left: 10px; font-weight: bold; color: yellow; } 
+        #timer { top: 10px; right: 10px; }
+        
+        #player-scoreboard {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            z-index: 100;
+            text-align: left;
+            font-size: 0.9em;
+            max-height: 90vh; 
+            overflow-y: auto; 
+            display: none; 
+        }
+        #player-scoreboard h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #00FF00; 
+        }
+        .player-score-entry {
+            margin-bottom: 5px;
+            padding: 3px 5px;
+            border-left: 3px solid transparent; 
+            transition: all 0.2s;
+            white-space: nowrap; 
+        }
+        .player-score-entry.active {
+            border-left: 3px solid lime; 
+            background-color: rgba(255, 255, 255, 0.1); 
+            font-weight: bold;
+        }
+
+        /* --- CONTROLES E BOTÕES --- */
+        #controls {
+            position: absolute;
+            /* ALTERAÇÃO: Move de 'bottom: 10px;' para 'top: 10px;' */
+            top: 10px; 
+            left: 10px; 
+            z-index: 100; 
+            background: rgba(0, 0, 0, 0.5); 
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+        }
+        #controls button {
+            padding: 8px 15px;
+            margin-right: 5px;
+            background-color: #333;
+            color: white;
+            border: 1px solid white;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        #pause-button.active {
+            background-color: red !important;
+            color: yellow !important;
+            border: 2px solid yellow !important;
+            font-weight: bold;
+        }
+        #player-select-buttons-inline button {
+            background-color: #007bff;
+            border: 1px solid #0056b3;
+            margin-left: 3px;
+        }
+        #player-select-buttons-inline button.active-player-count {
+            background-color: lime;
+            color: black;
+            font-weight: bold;
+            border: 2px solid yellow;
+        }
+
+        /* --- OBJETOS CAINDO E PROJÉTEIS --- */
+        .falling-object {
+            position: absolute; 
+            width: auto; 
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            border-radius: 0; 
+            padding: 5px 10px; 
+            font-size: 1.2em;
+            white-space: nowrap;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.7); 
+            background-color: transparent; 
+            color: black; 
+            will-change: transform; 
+            flex-direction: column; /* NOVO: Para empilhar nome e emoji */
+            line-height: 1; /* NOVO: Para melhor espaçamento */
+        }
+        .falling-object[data-type="operator"] {
+            color: orange; 
+            font-size: 1.8em; 
+        }
+        .falling-object[data-type="decimal-fix"] {
+            color: lightgreen;
+            border: none; 
+            padding: 0; 
+            font-size: 1.5em; 
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.7); 
+        }
+        .falling-object[data-type="monster"] {
+            color: #FF0000; 
+            padding: 0; 
+            font-size: 1.8em; 
+            text-shadow: none; 
+            border: none; 
+        }
+        .falling-object[data-type="number"] {
+            font-size: 1.5em;
+        }
+        .bullet {
+            position: absolute;
+            width: 10px; 
+            height: 10px; 
+            background-color: yellow; 
+            border-radius: 50%;
+            z-index: 60; 
+        }
+
+        /* --- NOVO: ESTILOS DA EXPLOSÃO --- */
+        .explosion-particle {
+            position: absolute;
+            width: 5px; 
+            height: 5px; 
+            border-radius: 50%;
+            z-index: 150; 
+            opacity: 1;
+            /* A animação agora dura 3 segundos para ser LENTA */
+            animation: explosion-move 3s ease-out forwards;
+        }
+
+        @keyframes explosion-move {
+            0% { transform: translate(0, 0); opacity: 1; }
+            100% { transform: translate(var(--x-dist), var(--y-dist)); opacity: 0; }
+        }
+
+        /* --- OVERLAY DE PAUSA / FIM DE JOGO --- */
+        #paused-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9); 
+            color: white;
+            font-size: 4em; 
+            font-weight: bold;
+            display: none; 
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 200;
+            pointer-events: all; 
+            text-align: center;
+            padding-top: 5%; 
+            box-sizing: border-box; 
+        }
+        #paused-overlay.visible {
+            display: flex;
+        }
+        .fatal-message {
+            color: red;
+            font-size: 0.7em; 
+            margin-bottom: 20px;
+        }
+        #paused-overlay button {
+            padding: 10px 20px;
+            font-size: 0.5em; 
+            margin: 10px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="game-title">ZerandoVianei</div> 
+    
+    <div id="audio-manager" style="display: none;">
+        <audio id="musica-ambiente" src="audio/musica-ambiente.mp3" loop></audio>
+        <audio id="musica-inicio-bem-vindo" src="audio/musica-inicio-bem-vindo.mp3"></audio>
+        <audio id="musica-pausado" src="audio/musica-pausado.mp3" loop></audio>
+        <audio id="som-quando-zera" src="audio/som-quando-zera.mp3"></audio>
+        <audio id="musica-quando-sobe-nivel" src="audio/musica-quando-sobe-nivel.mp3"></audio>
+        <audio id="morte-colidir-com-caveira" src="audio/morte-colidir-com-caveira.mp3"></audio>
+        <audio id="morte-colidir-numero-negativo-com-raiz" src="audio/morte-colidir-numero-negativo-com-raiz.mp3"></audio>
+        <audio id="morte-extrapolar-tolerancia" src="audio/morte-extrapolar-tolerancia.mp3"></audio>
+        <audio id="musica-quando-morre" src="audio/musica-quando-morre.mp3"></audio>
+        <audio id="som-colisao-numero" src="audio/som-colisao-numero.mp3"></audio>
+        <audio id="som-colisao-sinal-matematico" src="audio/som-colisao-sinal-matematico.mp3"></audio>
+        <audio id="som-colisao-monstro" src="audio/som-colisao.monstro.mp3"></audio>
+        <audio id="tiro-contra-numero" src="audio/tiro-contra-numero.mp3"></audio>
+        <audio id="entrar-condicao-decimal" src="audio/entrar-condicao-decimal.mp3"></audio>
+        <audio id="sair-condicao-decimal" src="audio/sair-condicao-decimal.mp3"></audio>
+        <audio id="som-quando-vira-numero-positivo" src="audio/som-quando-vira-numero-positivo.mp3"></audio>
+        <audio id="som-quando-vira-numero-negativo" src="audio/som-quando-vira-numero-negativo.mp3"></audio>
+        <audio id="som-clique-sair-jogo" src="audio/som-clique-sair-jogo.mp3"></audio>
+    </div>
+    
+    <div id="game-area">
+        <div id="score">Pontuação: 0</div>
+        <div id="current-level">Nível: 1</div>
+        <div id="timer">Tempo: 00:00:00</div>
+        <div id="player-scoreboard"></div> 
+
+        <div id="controls">
+            <button id="pause-button">PAUSAR</button>
+            <button id="reset-button">REINICIAR</button>
+            
+            <span style="margin-left: 15px; margin-right: 5px; font-weight: bold; font-size: 0.9em;">JOGAR COM:</span>
+            <span id="player-select-buttons-inline">
+                </span>
+            
+            <button id="tutorial-button" style="margin-left: 15px;">TUTORIAL</button>
+        </div>
+        
+        <div id="player">
+            <span id="player-value">83</span>
+            <span id="player-name-top">Vianei</span> 
+        </div>
+        
+        <div id="paused-overlay">PAUSADO</div> 
+        
+        <div id="level-up-message"></div>
+        
+    </div>
+
+    <script>
+        // --- VARIÁVEIS DE ESTADO E ELEMENTOS DO DOM ---
+        const playerContainer = document.getElementById('player');
+        // CORRIGIDO: Restaurando as variáveis dos elementos dinâmicos
+        const playerValueElement = document.getElementById('player-value'); 
+        const playerNameTopElement = document.getElementById('player-name-top');
+        // const playerNameBottomElement = document.getElementById('player-name-bottom'); // REMOVIDO: Elemento de nível removido do HTML
+        
+        const scoreElement = document.getElementById('score');
+        const currentLevelElement = document.getElementById('current-level'); 
+        const gameArea = document.getElementById('game-area');
+        const pauseButton = document.getElementById('pause-button');
+        const pausedOverlay = document.getElementById('paused-overlay');
+        // REMOVIDO: const eventFeedback = document.getElementById('event-feedback'); 
+        const levelUpMessage = document.getElementById('level-up-message'); 
+        const timerElement = document.getElementById('timer');
+        
+        const playerSelectButtonsContainer = document.getElementById('player-select-buttons-inline');
+        const playerScoreboard = document.getElementById('player-scoreboard');
+        const gameTitleElement = document.querySelector('.game-title'); 
+        
+        let lastPlayerSign = 1; 
+        let isDecimalState = false; 
+
+        // Variáveis de Jogo
+        let MAX_PLAYERS = 1; 
+        let currentPlayerIndex = 1; 
+        let playerStates = []; 
+        let isGameOver = false;
+        let isPaused = false; 
+        let playerScore = 0;
+        let playerValue = 0; 
+        let gameTime = 0;
+        let level = 1;
+        
+        const MAX_TOLERANCE = 100;
+        const MIN_TOLERANCE = -100;
+
+        // Loops e Arrays
+        let gameLoopInterval;
+        let timerIntervalId;
+        let objectCreationInterval; 
+        const fallingObjects = []; 
+        const bullets = []; 
+
+        const FALLING_OPERATORS = [
+            { type: 'number', sign: "+N", points: 0, operator: 'add', isFatal: false, isMonster: false }, 
+            { type: 'operator', sign: "x", points: 0, operator: 'mul', isFatal: false, isMonster: false }, 
+            { type: 'operator', sign: "/", points: 0, operator: 'div', isFatal: false, isMonster: false }, 
+            { type: 'operator', sign: "pow", points: 0, operator: 'pow', isFatal: false, isMonster: false }, 
+            { type: 'operator', sign: "√", points: 0, operator: 'sqrt', isFatal: false, isMonster: false },
+            { type: 'monster', sign: "💀", points: 7, isFatal: true, isMonster: true }, 
+            { type: 'monster', sign: "😈", points: 6, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "🦁", points: 5, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "🧙‍♀️", points: 4, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "🧛", points: 3, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "👽", points: 2, isFatal: false, isMonster: true }, 
+            { type: 'monster', sign: "👻", points: 1, isFatal: false, isMonster: true },
+            // NOVO MONSTRO: SEREIA MALVADA (CAROLINA) - Nível Mínimo 2
+            { type: 'monster', sign: "🧜‍♀️", name: "Carolina", points: 3, fixedDamage: 3, isFatal: false, isMonster: true, minLevel: 2 },
+            // NOVO MONSTRO: POLVO (EMILIO) - Adicionado a partir do Nível 3, com Dano na Pontuação
+            { type: 'monster', sign: "🐙", name: "Emilio", points: 4, scoreDamage: 4, isFatal: false, isMonster: true, minLevel: 3 } 
+        ];
+        
+        // --- FUNÇÕES DE GERENCIAMENTO DE ÁUDIO (CORREÇÃO DE AUTOPLAY) ---
+        const audioElements = {};
+        const musicPlayer = document.getElementById('musica-ambiente');
+        const musicGameOver = document.getElementById('musica-quando-morre');
+        const musicLevelUp = document.getElementById('musica-quando-sobe-nivel');
+        const musicPaused = document.getElementById('musica-pausado');
+
+        function initializeAudio() {
+            const manager = document.getElementById('audio-manager');
+            manager.querySelectorAll('audio').forEach(audio => {
+                audioElements[audio.id] = audio;
+            });
+        }
+        
+        /**
+         * Tenta iniciar a música principal após a primeira interação do usuário,
+         * contornando as políticas de AutoPlay dos navegadores.
+         */
+        function unlockAudio() {
+            if (musicPlayer && musicPlayer.paused) {
+                startMusic(musicPlayer);
+            }
+            // Remove os listeners após a primeira execução para não serem chamados novamente
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+        }
+
+        function playFx(id) {
+            const audio = audioElements[id];
+            if (audio) {
+                audio.currentTime = 0; 
+                audio.play().catch(e => console.log('Áudio Play Falhou:', id, e));
+            }
+        }
+
+        function startMusic(musicElement) {
+            stopAllMusic();
+            if (musicElement) {
+                musicElement.volume = 0.5; 
+                musicElement.play().catch(e => console.log('Música Play Falhou.'));
+            }
+        }
+
+        function stopAllMusic() {
+            [musicPlayer, musicGameOver, musicLevelUp, musicPaused].forEach(m => {
+                if (m) {
+                    m.pause();
+                    m.currentTime = 0;
+                }
+            });
+        }
+        // --- FIM FUNÇÕES DE ÁUDIO ---
+
+        // --- FUNÇÕES DE SETUP DO TÍTULO EM ONDA ---
+        function initializeWavyTitle(element, text) {
+            element.innerHTML = ''; 
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charSpan = document.createElement('span');
+                if (char === ' ') { charSpan.innerHTML = '&nbsp;'; } 
+                else {
+                    charSpan.textContent = char;
+                    charSpan.classList.add('title-char'); 
+                    charSpan.style.animationDelay = `${i * 0.1}s`; 
+                }
+                element.appendChild(charSpan);
+            }
+        }
+        
+        // --- FUNÇÕES DE GERENCIAMENTO DE ESTADO E TURNO ---
+        
+        function initializePlayerStates(count) {
+            MAX_PLAYERS = count;
+            playerStates = [];
+            for (let i = 1; i <= MAX_PLAYERS; i++) {
+                playerStates.push({
+                    id: i,
+                    name: `JOGADOR ${i}`,
+                    level: 1,
+                    score: 0,
+                    value: generateNewPlayerValue()
+                });
+            }
+        }
+
+        function updateScoreboard() {
+            if (MAX_PLAYERS < 2) { 
+                playerScoreboard.style.display = 'none';
+                return;
+            }
+            playerScoreboard.style.display = 'block';
+            playerScoreboard.innerHTML = '<h3>NÍVEIS CONQUISTADOS</h3>'; 
+            
+            const sortedStates = [...playerStates].sort((a, b) => b.level - a.level);
+
+            sortedStates.forEach(state => {
+                const entry = document.createElement('div');
+                entry.classList.add('player-score-entry');
+                if (state.id === currentPlayerIndex) {
+                    entry.classList.add('active'); 
+                }
+                entry.innerHTML = `**${state.name}**: NÍVEL **${state.level}**`;
+                playerScoreboard.appendChild(entry);
+            });
+        }
+        
+        function saveCurrentPlayerState() {
+            if (currentPlayerIndex > MAX_PLAYERS) return;
+            playerStates[currentPlayerIndex - 1].level = level;
+            playerStates[currentPlayerIndex - 1].score = playerScore;
+            playerStates[currentPlayerIndex - 1].value = playerValue; 
+        }
+
+        function loadCurrentPlayerState() {
+            if (currentPlayerIndex > MAX_PLAYERS) return;
+            
+            const state = playerStates[currentPlayerIndex - 1];
+            
+            level = state.level;
+            playerScore = state.score;
+            playerValue = state.value;
+
+            // playerNameTopElement.textContent = state.name; // COMENTADO: Mantém o texto "Vianei"
+            // CORRIGIDO: Restaurando a atualização do nível
+            // playerNameBottomElement.textContent = `NÍVEL: ${level}`; // REMOVIDO: Elemento de nível removido do HTML
+            
+            updateLevelDisplay(); 
+            updateScore(0); 
+            updatePlayerValue(playerValue); 
+            
+            gameTime = 0; 
+            timerElement.textContent = `Tempo: ${formatTime(0)}`; 
+            
+            updateScoreboard(); 
+            updatePlayerSelectButtonActiveState(); 
+        }
+
+        function startNextPlayerTurn(savePreviousState = true) {
+            if (MAX_PLAYERS === 0) return;
+            
+            playFx('som-clique-sair-jogo'); 
+
+            if (savePreviousState) { saveCurrentPlayerState(); }
+            
+            currentPlayerIndex = (currentPlayerIndex % MAX_PLAYERS) + 1;
+
+            loadCurrentPlayerState();
+            
+            endLoopsAndCleanup(); 
+            isPaused = false; 
+            pauseButton.classList.remove('active'); 
+            pausedOverlay.classList.remove('visible');
+            startGameTurn(); 
+        }
+
+        function selectPlayerCount(count) {
+             playFx('som-clique-sair-jogo'); 
+
+            if (MAX_PLAYERS === count) {
+                fullGameReset();
+                return;
+            }
+            
+            initializePlayerStates(count); 
+            currentPlayerIndex = 1; 
+            
+            endLoopsAndCleanup(); 
+            isGameOver = false; pausedOverlay.classList.remove('visible');
+            pauseButton.classList.remove('active'); 
+            loadCurrentPlayerState(); 
+            startGameTurn(); 
+            
+            playerContainer.style.transform = 'scale(1)'; 
+        }
+        
+        function fullGameReset() {
+            playFx('som-clique-sair-jogo'); 
+
+            initializePlayerStates(MAX_PLAYERS); 
+            currentPlayerIndex = 1;
+            endLoopsAndCleanup(); 
+            isGameOver = false; pausedOverlay.classList.remove('visible');
+            pauseButton.classList.remove('active'); 
+            
+            loadCurrentPlayerState(); 
+            startGameTurn(); 
+        }
+        
+        // --- FUNÇÕES DE UTILIDADE E CONTROLE ---
+        function generateNewPlayerValue() { 
+             let value = Math.floor(Math.random() * 101) - 50; 
+            while (value === 0) { value = Math.floor(Math.random() * 101) - 50; }
+            return value; 
+        }
+
+        function generateMonsterValue() {
+             let value = Math.floor(Math.random() * 13) - 6; 
+             while (value === 0) { value = Math.floor(Math.random() * 13) - 6; }
+             return value;
+        }
+
+        function updateLevelDisplay() { 
+            currentLevelElement.textContent = `Nível: ${level}`; 
+            // CORRIGIDO: Restaurando a atualização do nível
+            // playerNameBottomElement.textContent = `NÍVEL: ${level}`; // REMOVIDO: Elemento de nível removido do HTML
+        }
+        
+        function formatTime(seconds) {
+            const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+            const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+            const s = String(seconds % 60).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function updateTimer() {
+            gameTime++;
+            timerElement.textContent = `Tempo: ${formatTime(gameTime)}`;
+        }
+
+        function togglePause() {
+            if (isGameOver || MAX_PLAYERS === 0) return; 
+            isPaused = !isPaused;
+            if (isPaused) {
+                playFx('som-clique-sair-jogo');
+                endLoopsAndCleanup();
+                startMusic(musicPaused); 
+                pauseButton.textContent = 'CONTINUAR';
+                pauseButton.classList.add('active'); 
+                gameArea.style.cursor = 'default';
+                
+                pausedOverlay.innerHTML = `
+                    <div style="font-size: 1em; margin-bottom: 20px;">PAUSADO</div>
+                    <button onclick="togglePause()" style="font-size: 0.5em; margin: 10px;">CONTINUAR JOGO</button>
+                    <button onclick="selectPlayerCount(1)" style="font-size: 0.5em; margin: 10px; background-color: darkred; border: 1px solid white;">REINICIAR (1 JOGADOR)</button>
+                `;
+                pausedOverlay.classList.add('visible');
+            } else {
+                 playFx('som-clique-sair-jogo');
+                 startMusic(musicPlayer);
+                pausedOverlay.classList.remove('visible');
+                startGameTurn();
+            }
+        }
+
+        function startGameTurn() {
+             startMusic(musicPlayer); 
+            if (isGameOver) return; 
+            gameLoopInterval = setInterval(gameLoop, 1000 / 60); 
+            timerIntervalId = setInterval(updateTimer, 1000); 
+            objectCreationInterval = setInterval(generateObject, 1500); 
+            isPaused = false; 
+            pauseButton.textContent = 'PAUSAR';
+            pauseButton.classList.remove('active'); 
+            pausedOverlay.classList.remove('visible'); 
+            gameArea.style.cursor = 'none'; 
+            playerContainer.style.transform = 'scale(1)'; 
+        }
+
+        function endLoopsAndCleanup() {
+            clearInterval(gameLoopInterval); clearInterval(timerIntervalId);
+            clearInterval(objectCreationInterval);
+            document.querySelectorAll('.bullet, .falling-object').forEach(el => {
+                // Remove o label associado ao objeto (se existir)
+                const labelId = el.dataset?.labelId;
+                if (labelId) { document.getElementById(labelId)?.remove(); }
+                el.remove();
+            });
+            fallingObjects.length = 0; bullets.length = 0; 
+            playerContainer.style.transform = 'scale(1)'; 
+        }
+        
+        // --- FUNÇÕES DE COLISÃO FATAL E PASSAGEM DE TURNO ---
+        function handleFatalCollision(title, message, currentLevel, penalizeScore, audioId) {
+            if (MAX_PLAYERS === 0) return; 
+            
+            endLoopsAndCleanup(); isPaused = true;
+            
+            stopAllMusic(); // Para qualquer música (incluindo a de level-up) antes de começar a de game over
+            startMusic(musicGameOver);
+            playFx(audioId);
+            
+            saveCurrentPlayerState();
+            
+            const playerFinishedState = playerStates[currentPlayerIndex - 1]; 
+            const finalScoreText = `(Nível Salvo: ${playerFinishedState.level})`; 
+
+            if (penalizeScore) { 
+                playerStates[currentPlayerIndex - 1].level = 1; 
+                playerStates[currentPlayerIndex - 1].score = 0; 
+                playerStates[currentPlayerIndex - 1].value = generateNewPlayerValue();
+            }
+            
+            updateScoreboard();
+            // CORRIGIDO: Restaurando a atualização do valor para '---'
+            playerValueElement.textContent = '---'; 
+            
+            if (MAX_PLAYERS === 1) {
+                pausedOverlay.innerHTML = `
+                    <div class="fatal-message">${title}</div>
+                    <div style="font-size: 0.4em; margin-bottom: 20px;">${playerFinishedState.name} Progresso Salvo: ${finalScoreText}</div>
+                    <div style="font-size: 0.5em; margin-top: 5px; color: yellow;">FIM DE JOGO!</div>
+                    <div style="margin-top: 15px;">
+                        <button id="reset-fatal-button" onclick="fullGameReset()">REINICIAR (1 JOGADOR)</button>
+                    </div>
+                `;
+            } else {
+                const nextPlayerIndex = (currentPlayerIndex % MAX_PLAYERS) + 1;
+                const nextPlayerState = playerStates[nextPlayerIndex - 1]; 
+                const nextPlayerName = `JOGADOR ${nextPlayerIndex}`;
+                const nextPlayerStartText = `NÍVEL ${nextPlayerState.level}`; 
+
+                pausedOverlay.innerHTML = `
+                    <div class="fatal-message">${title}</div>
+                    <div style="font-size: 0.4em; margin-bottom: 20px;">
+                        ${playerFinishedState.name} Salvo: ${finalScoreText}
+                        <br><br>
+                        **${nextPlayerName}** carregará o: **${nextPlayerStartText}**
+                    </div>
+                    <div style="font-size: 0.5em; margin-top: 5px;">A vez é do **${nextPlayerName}**!</div>
+                    <div style="margin-top: 15px;">
+                        <button id="next-player-fatal-button" onclick="startNextPlayerTurn(false)">${nextPlayerName}: INICIAR TURNO</button>
+                        <button id="reset-fatal-button" onclick="selectPlayerCount(1)" style="background-color: darkred; border: 1px solid white; margin-top: 10px;">VOLTAR P/ 1 JOGADOR</button>
+                    </div>
+                `;
+            }
+            pausedOverlay.classList.add('visible'); 
+            pauseButton.classList.add('active'); 
+            gameArea.style.cursor = 'default'; 
+            playerContainer.style.transform = 'scale(0)'; 
+        }
+        
+        function applyWavyText(element, text) {
+            element.innerHTML = ''; 
+            const container = document.createElement('span');
+            container.classList.add('wavy-text'); 
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charSpan = document.createElement('span');
+                
+                if (char === ' ') { charSpan.innerHTML = '&nbsp;'; } 
+                else {
+                    charSpan.textContent = char;
+                    charSpan.classList.add('level-up-char');
+                    charSpan.style.animationDelay = `${i * 0.1}s`; 
+                }
+                container.appendChild(charSpan);
+            }
+            element.appendChild(container);
+        }
+
+        function levelUp() {
+            if (MAX_PLAYERS === 0) return;
+            
+            playFx('som-quando-zera');
+            stopAllMusic(); // Garante que a música do jogo pare
+            startMusic(musicLevelUp); 
+
+            level++; updateLevelDisplay(); endLoopsAndCleanup(); isPaused = true;
+            pauseButton.classList.add('active'); 
+            
+            saveCurrentPlayerState(); 
+            playerStates[currentPlayerIndex - 1].value = generateNewPlayerValue(); 
+            
+            const playerFinishedState = playerStates[currentPlayerIndex - 1];
+            const finalScoreText = `NÍVEL ${level-1} alcançado!`; 
+            
+            const nextPlayerIndex = (currentPlayerIndex % MAX_PLAYERS) + 1;
+            const nextPlayerState = playerStates[nextPlayerIndex - 1]; 
+            const nextPlayerName = `JOGADOR ${nextPlayerIndex}`;
+            const nextPlayerStartText = `NÍVEL ${nextPlayerState.level}`; 
+
+            const messageText = `${playerFinishedState.name} CONCLUIU o NÍVEL ${level-1}!`;
+            
+            applyWavyText(levelUpMessage, messageText); 
+            levelUpMessage.classList.add('level-up-visible');
+            
+            updateScoreboard(); 
+            
+            setTimeout(() => {
+                levelUpMessage.classList.remove('level-up-visible');
+                
+                pausedOverlay.innerHTML = `
+                    <div style="color: lime; font-size: 0.8em; margin-bottom: 5px;">🎉 ${finalScoreText} 🎉</div>
+                    <div style="font-size: 0.4em; margin-bottom: 20px; font-weight: normal;">
+                        ${playerFinishedState.name} Salvo: ${finalScoreText}
+                        <br><br>
+                        **${nextPlayerName}** carregará o: **${nextPlayerStartText}**
+                    </div>
+                    <div style="font-size: 0.5em; margin-top: 5px;">A vez é do **${nextPlayerName}**!</div>
+                    <div style="margin-top: 15px;">
+                        <button id="next-player-level-up-button" onclick="startNextPlayerTurn(false)">${nextPlayerName}: INICIAR TURNO</button>
+                        <button id="reset-level-up-button" onclick="selectPlayerCount(1)" style="background-color: darkred; border: 1px solid white; margin-top: 10px;">VOLTAR P/ 1 JOGADOR</button>
+                    </div>
+                `;
+                pausedOverlay.classList.add('visible');
+                
+            }, 4000); 
+        }
+        
+        function handleToleranceBreak(value) {
+            handleFatalCollision(
+                `VALOR ${value.toFixed(2)}! TOLERÂNCIA ULTRAPASSADA!`,
+                `O Valor do Jogador (${value.toFixed(2)}) ultrapassou os limites de ${MIN_TOLERANCE} ou ${MAX_TOLERANCE}.`,
+                level, true,
+                'morte-extrapolar-tolerancia' 
+            );
+        }
+        // REMOVIDO: function showFeedbackMessage(message, color = 'red') { ... }
+
+        function showFloatingPenalty(x, y, value, emoji, isSqrtPenalty = false, customText = null) {
+             const feedbackDiv = document.createElement('div');
+            feedbackDiv.classList.add('floating-feedback');
+            
+            if (customText) {
+                feedbackDiv.innerHTML = customText;
+            } else {
+                let displayValue = Number.isInteger(value) ? value.toString() : value.toFixed(2);
+                if (value > 0) displayValue = `+${displayValue}`;
+                
+                if (isSqrtPenalty) { feedbackDiv.classList.add('floating-penalty-sqrt'); feedbackDiv.innerHTML = `<span class="monster-value">√</span>RAIZ NEGATIVA!`; } 
+                else { 
+                    feedbackDiv.innerHTML = `<span class="monster-value">${emoji}</span>Perdeu ${Math.abs(value)}!`; 
+                }
+            }
+            
+            feedbackDiv.style.left = `${x}px`; feedbackDiv.style.top = `${y}px`;
+            gameArea.appendChild(feedbackDiv);
+            setTimeout(() => { feedbackDiv.remove(); }, 3000); 
+        }
+        
+        function checkCollision(element1, element2) {
+            const rect1 = element1.getBoundingClientRect();
+            const rect2 = element2.getBoundingClientRect();
+            const tolerance = 5; 
+
+            return (
+                rect1.left + tolerance < rect2.right - tolerance && 
+                rect1.right - tolerance > rect2.left + tolerance &&
+                rect1.top + tolerance < rect2.bottom - tolerance &&  
+                rect1.bottom - tolerance > rect2.top + tolerance   
+            );
+        }
+
+        // --- LÓGICA MATEMÁTICA ---
+        
+        function toPrecision(value, decimals) {
+            const factor = Math.pow(10, decimals);
+            return Math.round(value * factor) / factor;
+        }
+
+        function updatePlayerValue(value) {
+            const oldPlayerValue = playerValue;
+            playerValue = toPrecision(value, 3); 
+            
+            let displayValue = Number.isInteger(playerValue) ? playerValue.toString() : playerValue.toFixed(3);
+            
+            if (!Number.isInteger(playerValue)) {
+                displayValue = displayValue.replace(/0+$/, '').replace(/\.$/, '');
+            }
+            
+            // CORRIGIDO: Restaurando a atualização do valor
+            playerValueElement.textContent = displayValue; 
+            
+            // CORRIGIDO: Restaurando a atualização da cor
+            if (playerValue > 0) { playerValueElement.style.color = 'lime'; } 
+            else if (playerValue < 0) { playerValueElement.style.color = 'cyan'; } 
+            else { playerValueElement.style.color = 'white'; }
+            
+            // Verificação de Sinal
+            const currentPlayerSign = Math.sign(playerValue) || 1;
+            if (currentPlayerSign !== lastPlayerSign && Math.abs(playerValue) > 0) {
+                 if (currentPlayerSign === 1) { playFx('som-quando-vira-numero-positivo'); } 
+                 else { playFx('som-quando-vira-numero-negativo'); }
+                 lastPlayerSign = currentPlayerSign;
+            }
+            
+            // Verificação de Estado Decimal
+            const newIsDecimal = Math.abs(playerValue - Math.round(playerValue)) > 0.001; 
+            if (newIsDecimal !== isDecimalState) {
+                if (newIsDecimal) { playFx('entrar-condicao-decimal'); } 
+                isDecimalState = newIsDecimal;
+            }
+
+            if (Math.abs(playerValue) < 0.001) { 
+                playerValue = 0; 
+                // CORRIGIDO: Restaurando a atualização do valor para '0'
+                playerValueElement.textContent = '0';
+                levelUp();
+            }
+            
+            updateScoreboard(); 
+        }
+
+        function updateScore(points) {
+            playerScore += points;
+            if (playerScore < 0) { playerScore = 0; }
+            // ALTERADO: Usando toFixed(1) para garantir a exibição com uma casa decimal (X.x) e remover Math.floor
+            scoreElement.textContent = `Pontuação: ${playerScore.toFixed(1)}`;
+        }
+
+        function applyOperator(playerVal, operatorType, operand, exponent = 0, multiplierOrDivisor = 0, monsterValue = 0) {
+            let result = playerVal;
+            
+            switch (operatorType) {
+                case 'number': 
+                case 'decimal-fix': 
+                case 'add':
+                    result += operand;
+                    break;
+                case 'mul':
+                    result *= multiplierOrDivisor; 
+                    break;
+                case 'div':
+                    // >>> NOVO LIMITE: Divisão desabilitada se o valor absoluto do jogador for menor ou igual a 0.25
+                    if (Math.abs(playerVal) <= 0.25) { 
+                        // Retorna o valor original e um flag para informar que a divisão foi desabilitada
+                        return { result: playerVal, isFatalSqrt: false, isDivisionDisabled: true }; 
+                    }
+                    // FIM NOVO LIMITE <<<
+
+                    if (multiplierOrDivisor === 0) { result = 0; } 
+                    else { result /= multiplierOrDivisor; }
+                    break;
+                case 'pow':
+                    result = Math.pow(result, exponent); 
+                    break;
+                case 'sqrt':
+                    if (playerVal < 0) { return { result: playerVal, isFatalSqrt: true, isDivisionDisabled: false }; }
+                    result = Math.sqrt(playerVal);
+                    break;
+                case 'monster':
+                    result -= monsterValue; 
+                    break;
+            }
+            // Atualiza o retorno padrão para incluir o novo flag
+            return { result: result, isFatalSqrt: false, isDivisionDisabled: false };
+        }
+        
+        // --- FUNÇÕES DE CRIAÇÃO DE OBJETOS ---
+
+        /**
+         * Cria um efeito de explosão com 50 partículas lentas.
+         * ESTE É O EFEITO ORIGINAL DOS MONSTROS.
+         * @param {number} x Coordenada X (centro da explosão).
+         * @param {number} y Coordenada Y (centro da explosão).
+         */
+        function createExplosionEffect(x, y) {
+            const particleCount = 50; 
+            const spreadRadius = 150; 
+            const colors = ['#FFFF00', '#FFA500', '#FF4500']; // Amarelo, Laranja, Vermelho (Efeito Monstro)
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('explosion-particle');
+                
+                // Posição inicial
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Dispersão lenta e aleatória
+                const angle = Math.random() * 2 * Math.PI; 
+                const distance = Math.random() * spreadRadius + 50; 
+                const xDist = Math.cos(angle) * distance;
+                const yDist = Math.sin(angle) * distance;
+
+                // Variáveis CSS para o keyframe
+                particle.style.setProperty('--x-dist', `${xDist}px`);
+                particle.style.setProperty('--y-dist', `${yDist}px`);
+                
+                // Pequeno delay para variar a animação
+                particle.style.animationDelay = `${Math.random() * 0.5}s`; 
+
+                gameArea.appendChild(particle);
+
+                // Remover partícula após a animação (3 segundos + 0.5s de delay máximo)
+                setTimeout(() => { particle.remove(); }, 3500);
+            }
+        }
+
+        /**
+         * NOVO: Cria um efeito de explosão MUITO colorido, lento e intenso
+         * para NÚMEROS e SINAIS (incluindo o decimal-fix).
+         * @param {number} x Coordenada X (centro da explosão).
+         * @param {number} y Coordenada Y (centro da explosão).
+         */
+        function createColorfulExplosion(x, y) {
+            const particleCount = 70; // Mais partículas para mais intensidade
+            const spreadRadius = 200; // Maior dispersão
+            // Cores intensas e coloridas
+            const colors = ['#FF00FF', '#00FFFF', '#FFFF00', '#FF0000', '#00FF00', '#FF4500']; 
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                // Reutiliza a classe de estilo existente que controla a animação LENTA
+                particle.classList.add('explosion-particle'); 
+                
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Dispersão lenta e aleatória
+                const angle = Math.random() * 2 * Math.PI; 
+                const distance = Math.random() * spreadRadius + 50; 
+                const xDist = Math.cos(angle) * distance;
+                const yDist = Math.sin(angle) * distance;
+
+                particle.style.setProperty('--x-dist', `${xDist}px`);
+                particle.style.setProperty('--y-dist', `${yDist}px`);
+                particle.style.animationDelay = `${Math.random() * 0.5}s`; 
+
+                gameArea.appendChild(particle);
+
+                setTimeout(() => { particle.remove(); }, 3500); // 3.5 segundos para a explosão lenta
+            }
+        }
+        
+        function generateObject() {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            
+            const rand = Math.random();
+            if (rand < 0.50) { 
+                 createFallingNumber();
+            } else if (rand < 0.75) { 
+                 const operators = FALLING_OPERATORS.filter(op => op.type !== 'number' && !op.isMonster);
+                 const operatorData = operators[Math.floor(Math.random() * operators.length)];
+                 createFallingOperator(operatorData);
+            } else { 
+                // MODIFICADO: Filtra monstros que podem aparecer no nível atual
+                const availableMonsters = FALLING_OPERATORS.filter(op => {
+                    if (!op.isMonster) return false;
+                    // Generaliza a lógica: se tiver minLevel, verifica se o nível atual é >= minLevel. Caso contrário, assume que pode aparecer em qualquer nível (Nível 1).
+                    const requiredLevel = op.minLevel || 1; 
+                    return level >= requiredLevel;
+                });
+
+                if (availableMonsters.length === 0) {
+                     // Se não houver monstros disponíveis, cria um operador em vez disso
+                     const operators = FALLING_OPERATORS.filter(op => op.type !== 'number' && !op.isMonster);
+                     const operatorData = operators[Math.floor(Math.random() * operators.length)];
+                     createFallingOperator(operatorData);
+                     return;
+                }
+
+                const chosenMonster = availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
+                
+                if (Math.random() < 0.30 && chosenMonster.isFatal === false) {
+                    createParabolicMonster(chosenMonster);
+                } else {
+                    createFallingOperator(chosenMonster); 
+                }
+            }
+        }
+        
+        function createFallingNumber() { 
+            let value = Math.floor(Math.random() * 101) - 50; 
+            while (value === 0) { value = Math.floor(Math.random() * 101) - 50; }
+            
+            const objectDiv = document.createElement('div');
+            objectDiv.classList.add('falling-object');
+            objectDiv.dataset.type = 'number';
+            objectDiv.textContent = value; 
+            objectDiv.dataset.value = value;
+            objectDiv.dataset.points = 0; 
+            objectDiv.dataset.operator = 'number'; 
+            objectDiv.dataset.isFatal = 'false'; 
+            if (value > 0) { objectDiv.style.color = 'lime'; } 
+            else if (value < 0) { objectDiv.style.color = 'cyan'; } 
+            
+            setObjectMovementVars(objectDiv);
+            gameArea.appendChild(objectDiv);
+            fallingObjects.push(objectDiv);
+        }
+        
+        function createFallingOperator(operatorData) {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            
+            const objectDiv = document.createElement('div');
+            objectDiv.classList.add('falling-object');
+            objectDiv.dataset.type = operatorData.isMonster ? 'monster' : 'operator';
+            
+            let displaySign = operatorData.sign;
+            let exponent = 0;
+            let multiplierOrDivisor = 0;
+            let monsterValue = 0;
+
+            if (operatorData.isMonster) {
+                // MODIFICADO: Usa dano fixo se definido (Ex: Carolina)
+                if (operatorData.fixedDamage !== undefined) {
+                    monsterValue = operatorData.fixedDamage;
+                } else {
+                    monsterValue = generateMonsterValue();
+                }
+                objectDiv.dataset.monsterValue = monsterValue; 
+                // NOVO: Adiciona o dano na pontuação se definido (Ex: Emilio)
+                if (operatorData.scoreDamage !== undefined) {
+                    objectDiv.dataset.scoreDamage = operatorData.scoreDamage;
+                }
+            } else if (operatorData.operator === 'pow') {
+                const factor = Math.random() < 0.5 ? 2 : 3;
+                exponent = factor; 
+                displaySign = `x${exponent === 2 ? '²' : '³'}`;
+                objectDiv.dataset.exponent = exponent; 
+            } else if (operatorData.operator === 'mul') {
+                const factor = Math.random() < 0.5 ? 2 : 3;
+                multiplierOrDivisor = factor;
+                displaySign = `x${multiplierOrDivisor}`;
+                objectDiv.dataset.multiplierordivisor = multiplierOrDivisor; 
+            } else if (operatorData.operator === 'div') {
+                const factor = Math.random() < 0.5 ? 2 : 3;
+                multiplierOrDivisor = factor;
+                displaySign = `/${multiplierOrDivisor}`;
+                objectDiv.dataset.multiplierordivisor = multiplierOrDivisor; 
+            }
+
+            // MODIFICADO: Se tiver nome, cria um texto flutuante separado (label)
+            if (operatorData.name) {
+                // Remove o nome de dentro do objeto principal, mas mantém o emoji
+                objectDiv.textContent = displaySign; 
+                
+                // CRIAÇÃO DO TEXTO FLUTUANTE (LABEL)
+                const labelDiv = document.createElement('div');
+                labelDiv.classList.add('falling-object-label');
+                labelDiv.textContent = operatorData.name.toUpperCase();
+                // Associa o ID do label ao objeto caindo para que o gameLoop o mova
+                objectDiv.dataset.labelId = 'label_' + Date.now() + Math.random().toString(36).substring(2, 9); 
+                labelDiv.id = objectDiv.dataset.labelId;
+                gameArea.appendChild(labelDiv);
+            } else {
+                objectDiv.textContent = displaySign; 
+            }
+            
+            objectDiv.dataset.value = 0; 
+            objectDiv.dataset.points = operatorData.points; 
+            objectDiv.dataset.operator = operatorData.isMonster ? 'monster' : operatorData.operator; 
+            objectDiv.dataset.isFatal = operatorData.isFatal ? 'true' : 'false'; 
+            
+            setObjectMovementVars(objectDiv);
+            gameArea.appendChild(objectDiv);
+            fallingObjects.push(objectDiv);
+        }
+
+        function createParabolicMonster(monsterData) {
+            const objectDiv = document.createElement('div');
+            objectDiv.classList.add('falling-object');
+            objectDiv.dataset.type = 'monster';
+            
+            // MODIFICADO: Usa dano fixo se definido
+            let monsterValue;
+            if (monsterData.fixedDamage !== undefined) {
+                monsterValue = monsterData.fixedDamage;
+            } else {
+                monsterValue = generateMonsterValue();
+            }
+            objectDiv.dataset.monsterValue = monsterValue; 
+            
+            // NOVO: Adiciona o dano na pontuação se definido
+            if (monsterData.scoreDamage !== undefined) {
+                objectDiv.dataset.scoreDamage = monsterData.scoreDamage;
+            }
+
+            // MODIFICADO: Adicionar o nome se o monstro tiver um
+            if (monsterData.name) {
+                // Remove o nome de dentro do objeto principal, mas mantém o emoji
+                objectDiv.textContent = monsterData.sign; 
+                
+                // CRIAÇÃO DO TEXTO FLUTUANTE (LABEL)
+                const labelDiv = document.createElement('div');
+                labelDiv.classList.add('falling-object-label');
+                labelDiv.textContent = monsterData.name.toUpperCase();
+                objectDiv.dataset.labelId = 'label_' + Date.now() + Math.random().toString(36).substring(2, 9); 
+                labelDiv.id = objectDiv.dataset.labelId;
+                gameArea.appendChild(labelDiv);
+            } else {
+                objectDiv.textContent = monsterData.sign; 
+            }
+            
+            objectDiv.dataset.value = 0; 
+            objectDiv.dataset.points = monsterData.points; 
+            objectDiv.dataset.operator = 'monster'; 
+            objectDiv.dataset.isFatal = 'false'; 
+            objectDiv.dataset.movementType = 'parabolic'; 
+
+            setObjectMovementVars(objectDiv, false, true); 
+            gameArea.appendChild(objectDiv);
+            fallingObjects.push(objectDiv);
+        }
+
+        function createDecimalFix(x, y, currentValue) {
+            const isDecimal = Math.abs(currentValue - Math.round(currentValue)) > 0.001; 
+            if (!isDecimal) { return; }
+
+            const targetInteger = Math.round(currentValue);
+            const rawCorrection = targetInteger - currentValue;
+            const finalCorrection = toPrecision(rawCorrection, 3);
+            
+            const objectDiv = document.createElement('div');
+            objectDiv.classList.add('falling-object');
+            objectDiv.dataset.type = 'decimal-fix';
+            
+            let correctionDisplay = finalCorrection.toFixed(3);
+            if (finalCorrection >= 0) correctionDisplay = `+${correctionDisplay}`;
+            
+            correctionDisplay = correctionDisplay.replace(/0+$/, '').replace(/\.$/, '');
+            objectDiv.textContent = correctionDisplay; 
+            
+            objectDiv.dataset.value = finalCorrection; 
+            objectDiv.dataset.points = 0; 
+            objectDiv.dataset.operator = 'decimal-fix'; 
+            objectDiv.dataset.isFatal = 'false'; 
+
+            objectDiv.dataset.initialX = x;
+            objectDiv.dataset.y = y; 
+            
+            setObjectMovementVars(objectDiv, true); 
+            
+            gameArea.appendChild(objectDiv);
+            fallingObjects.push(objectDiv);
+            // REMOVIDO: showFeedbackMessage(`CORREÇÃO LIBERADA: ${correctionDisplay}`, 'yellow');
+        }
+        
+        function setObjectMovementVars(objectDiv, generatedMidScreen = false, fromSide = false) {
+            const minSpeed = 0.5; 
+            const maxSpeed = 1.50;
+            const randomSpeed = Math.random() * (maxSpeed - minSpeed) + minSpeed;
+            const randomAmplitude = Math.random() * (50 - 20) + 20;
+            const randomOffset = Math.random() * 2 * Math.PI; 
+            
+            let initialX;
+            let initialY;
+            
+            if (generatedMidScreen) {
+                initialX = parseFloat(objectDiv.dataset.initialX);
+                initialY = parseFloat(objectDiv.dataset.y);
+                objectDiv.dataset.fallSpeed = 0.5; 
+            } else if (fromSide) {
+                initialY = Math.random() * (window.innerHeight / 2); 
+                const isLeft = Math.random() < 0.5;
+                initialX = isLeft ? -50 : window.innerWidth + 50; 
+                objectDiv.dataset.fallSpeed = randomSpeed;
+                objectDiv.dataset.parabolicDirection = isLeft ? 1 : -1; 
+                objectDiv.dataset.parabolicInitialX = initialX;
+                objectDiv.dataset.parabolicInitialY = initialY;
+                
+                objectDiv.dataset.parabolicXVelocity = (Math.random() * 2 + 1 + (level * 0.5)) * objectDiv.dataset.parabolicDirection;
+                objectDiv.dataset.parabolicYVelocity = randomSpeed;
+                objectDiv.dataset.timeInAir = 0; 
+            } else {
+                initialX = window.innerWidth * Math.random(); 
+                initialY = -100; 
+                objectDiv.dataset.fallSpeed = randomSpeed;
+            }
+
+            objectDiv.dataset.initialX = initialX; 
+            objectDiv.dataset.y = initialY; 
+            objectDiv.dataset.waveAmplitude = randomAmplitude; 
+            objectDiv.dataset.waveOffset = randomOffset; 
+            objectDiv.dataset.scale = 1; 
+            
+            objectDiv.style.transform = `translate(${initialX}px, ${initialY}px) scale(1)`;
+        }
+
+        // --- LÓGICA DE COLISÃO DO JOGADOR (CORPO) ---
+        function checkPlayerCollision(obj, index) {
+            if (!checkCollision(playerContainer, obj)) { return false; } // Alterado para checar a colisão com o container #player
+            
+            const operatorType = obj.dataset.operator;
+            const value = parseFloat(obj.dataset.value); 
+            const exponent = parseInt(obj.dataset.exponent) || 0; 
+            const multiplierOrDivisor = parseInt(obj.dataset.multiplierordivisor) || 0; 
+            const monsterValue = parseInt(obj.dataset.monsterValue) || 0; 
+            
+            if (obj.dataset.type === 'number' || obj.dataset.type === 'operator' || obj.dataset.type === 'decimal-fix') {
+                
+                // Alterado para capturar o novo flag 'isDivisionDisabled'
+                const { result: newPlayerValue, isFatalSqrt, isDivisionDisabled } = applyOperator(playerValue, operatorType, value, exponent, multiplierOrDivisor); 
+                
+                // >>> NOVO CHECK PARA DIVISÃO DESABILITADA <<<
+                if (isDivisionDisabled) { 
+                     // Remove o label se existir
+                     if (obj.dataset.labelId) { document.getElementById(obj.dataset.labelId)?.remove(); }
+                     obj.remove(); fallingObjects.splice(index, 1);
+                     playFx('som-colisao-sinal-matematico'); // Som neutro de colisão
+                     return true; 
+                }
+                // >>> FIM NOVO CHECK <<<
+
+                if (isFatalSqrt) {
+                    // Remove o label se existir
+                    if (obj.dataset.labelId) { document.getElementById(obj.dataset.labelId)?.remove(); }
+                    obj.remove(); fallingObjects.splice(index, 1);
+                    const monsterRect = obj.getBoundingClientRect(); 
+                    showFloatingPenalty(monsterRect.left + monsterRect.width / 2, monsterRect.top, 0, '√', true);
+                    handleFatalCollision("COLISÃO FATAL: RAIZ NEGATIVA!", `Colidir com Raiz Quadrada (√) com um valor negativo (${playerValue}) resulta em morte!`, level, true, 'morte-colidir-numero-negativo-com-raiz');
+                    return true;
+                }
+                
+                if (obj.dataset.type === 'decimal-fix') {
+                    const finalCorrection = parseFloat(obj.dataset.value);
+                    const targetValue = playerValue + finalCorrection;
+                    updatePlayerValue(Math.round(targetValue)); 
+                    // REMOVIDO: showFeedbackMessage(`CORREÇÃO APLICADA. VALOR AGORA É INTEIRO.`, 'lime');
+                    playFx('sair-condicao-decimal');
+                } else {
+                    updatePlayerValue(newPlayerValue); 
+                    
+                    if (operatorType === 'number') {
+                         playFx('som-colisao-numero');
+                    } else {
+                         playFx('som-colisao-sinal-matematico');
+                    }
+                }
+
+                // Remove o label se existir
+                if (obj.dataset.labelId) { document.getElementById(obj.dataset.labelId)?.remove(); }
+                obj.remove();
+                fallingObjects.splice(index, 1);
+                
+                if (newPlayerValue > MAX_TOLERANCE || newPlayerValue < MIN_TOLERANCE) {
+                    handleToleranceBreak(newPlayerValue);
+                }
+
+                return true; 
+            }
+
+            if (obj.dataset.type === 'monster') {
+                
+                const pointsLost = parseInt(obj.dataset.points);
+                const monsterEmoji = obj.textContent; // Pega o emoji base
+                const scoreDamage = parseInt(obj.dataset.scoredamage) || 0; // NOVO: Dano na pontuação
+                
+                if (obj.dataset.isFatal === 'true') {
+                    // Remove o label se existir
+                    if (obj.dataset.labelId) { document.getElementById(obj.dataset.labelId)?.remove(); }
+                    obj.remove(); fallingObjects.splice(index, 1);
+                    handleFatalCollision("MORREU!", "Colisão Fatal com a Caveira.", level, true, 'morte-colidir-com-caveira');
+                    return true;
+                } else {
+                    
+                    const monsterDamage = monsterValue; 
+                    let damageValue = monsterDamage; 
+                    let customMessage = null;
+                    
+                    if (scoreDamage > 0) {
+                        // Monstro que afeta a pontuação (Ex: Emilio)
+                        updateScore(-scoreDamage);
+                        damageValue = 0; // Não afeta playerValue
+                        
+                        customMessage = `<span class="monster-value">${monsterEmoji}</span>Perdeu ${scoreDamage} Pontos!`;
+                        
+                    } else {
+                         // Monstro normal afeta playerValue
+                        updateScore(-pointsLost); 
+                    }
+                    
+                    const { result: newPlayerValue } = applyOperator(playerValue, operatorType, 0, 0, 0, damageValue); 
+
+                    updatePlayerValue(newPlayerValue);
+                    playFx('som-colisao-monstro'); 
+
+                    // Remove o label se existir
+                    if (obj.dataset.labelId) { document.getElementById(obj.dataset.labelId)?.remove(); }
+                    obj.remove(); fallingObjects.splice(index, 1);
+                    
+                    const monsterRect = obj.getBoundingClientRect(); 
+
+                    // Feedback, usando customMessage se houver dano na pontuação
+                    showFloatingPenalty(
+                        monsterRect.left + monsterRect.width / 2, 
+                        monsterRect.top, 
+                        damageValue, 
+                        monsterEmoji,
+                        false,
+                        customMessage 
+                    );
+
+                    if (newPlayerValue > MAX_TOLERANCE || newPlayerValue < MIN_TOLERANCE) {
+                        handleToleranceBreak(newPlayerValue);
+                    }
+                    
+                    playerContainer.style.transform = 'scale(0.8)';
+                    setTimeout(() => { playerContainer.style.transform = 'scale(1)'; }, 100);
+
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // --- LÓGICA DE TIRO (Geração do Conserta-Decimal) ---
+        
+        /**
+         * Cria e adiciona um projétil (bala) ao jogo.
+         */
+        function createBullet() {
+            playFx('tiro-contra-numero'); // Som de Tiro
+
+            const bullet = document.createElement('div');
+            bullet.classList.add('bullet');
+            const playerRect = playerContainer.getBoundingClientRect();
+            
+            // Posiciona a bala no centro superior do jogador
+            bullet.style.left = `${playerRect.left + playerRect.width / 2 - 5}px`; 
+            bullet.style.top = `${playerRect.top}px`; 
+            
+            gameArea.appendChild(bullet);
+            bullets.push(bullet);
+        }
+
+        // --- MODIFICAÇÃO DE CONTROLE DE MOVIMENTO E TIRO ---
+        
+        /**
+         * Lógica unificada para mover o jogador, usada tanto pelo mouse quanto por toque.
+         * @param {number} clientX Coordenada X do mouse/toque.
+         * @param {number} clientY Coordenada Y do mouse/toque.
+         */
+        function handlePlayerMove(clientX, clientY) {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            
+            const playerRect = playerContainer.getBoundingClientRect();
+            const playerWidth = playerRect.width; 
+            const playerHeight = playerRect.height; 
+            
+            // Calcula a nova posição X e Y (centralizando o jogador no cursor/toque)
+            let newX = clientX - playerWidth / 2;
+            let newY = clientY - playerHeight / 2;
+            
+            // Limita a área de movimento dentro da tela
+            newX = Math.max(0, Math.min(newX, window.innerWidth - playerWidth));
+            newY = Math.max(0, Math.min(newY, window.innerHeight - playerHeight));
+            
+            playerContainer.style.left = `${newX}px`;
+            playerContainer.style.top = `${newY}px`;
+        }
+        
+        // EVENTOS PARA MOUSE (Original)
+        gameArea.addEventListener('mousemove', (e) => {
+            handlePlayerMove(e.clientX, e.clientY);
+        });
+
+        gameArea.addEventListener('click', (e) => {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return; 
+            // Dispara um tiro com o clique do mouse
+            createBullet();
+        });
+
+        // EVENTOS PARA TOQUE (NOVO)
+        gameArea.addEventListener('touchstart', (e) => {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            e.preventDefault(); // Previne o comportamento padrão do navegador (ex: zoom)
+            
+            const touch = e.touches[0];
+            // Move o jogador para o ponto do toque
+            handlePlayerMove(touch.clientX, touch.clientY); 
+            // Dispara um tiro no início do toque (simulando o clique)
+            createBullet(); 
+        });
+
+        gameArea.addEventListener('touchmove', (e) => {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            e.preventDefault(); // Previne o comportamento padrão
+            
+            const touch = e.touches[0];
+            // Move o jogador ao arrastar o dedo
+            handlePlayerMove(touch.clientX, touch.clientY);
+        });
+
+        // --- FIM MODIFICAÇÃO DE CONTROLE ---
+
+        function checkBulletCollision(bullet, index) {
+            
+             for (let j = fallingObjects.length - 1; j >= 0; j--) {
+                const obj = fallingObjects[j];
+                
+                if (checkCollision(bullet, obj)) {
+                    
+                    const objType = obj.dataset.type;
+                    
+                    // >> NOVO CÓDIGO: Efeito colorido para NÚMEROS, SINAIS e DECIMAL-FIX <<
+                    if (objType !== 'monster') {
+                        // Captura as coordenadas do centro do objeto para a explosão
+                        const rect = obj.getBoundingClientRect();
+                        const centerX = rect.left + rect.width / 2;
+                        const centerY = rect.top + rect.height / 2;
+                        
+                        // Adiciona 0.2 ou 0.3 pontos
+                        let pointsToAdd = 0;
+                        if (objType === 'number') {
+                            pointsToAdd = 0.2;
+                            // REMOVIDO: showFeedbackMessage(`+0.2 PONTOS! (NUMÉRICO)`, 'lime');
+                        } else if (objType === 'operator' || objType === 'decimal-fix') {
+                            pointsToAdd = 0.3;
+                            // REMOVIDO: showFeedbackMessage(`+0.3 PONTOS! (OPERADOR/CORREÇÃO)`, 'lime');
+                        }
+                        updateScore(pointsToAdd);
+                        
+                        // Chamada para a nova explosão colorida e intensa
+                        createColorfulExplosion(centerX, centerY); 
+                        
+                        // Remove o label se existir
+                        if (obj.dataset.labelId) { document.getElementById(obj.dataset.labelId)?.remove(); }
+                        // Remoção do objeto e tiro
+                        obj.remove();
+                        fallingObjects.splice(j, 1);
+                        bullet.remove();
+                        bullets.splice(index, 1);
+                        return true; // Encerra a colisão para este tiro
+                    }
+                    // >> FIM NOVO CÓDIGO <<
+                    
+                    if (objType === 'monster') {
+                        // Captura as coordenadas do centro do monstro para a explosão
+                        const rect = obj.getBoundingClientRect();
+                        const centerX = rect.left + rect.width / 2;
+                        const centerY = rect.top + rect.height / 2;
+                        
+                        createExplosionEffect(centerX, centerY); // EXPLOSÃO ORIGINAL DOS MONSTROS (NÃO ALTERADA)
+                        
+                        const isDecimal = Math.abs(playerValue - Math.round(playerValue)) > 0.001; 
+                        const isFatal = obj.dataset.isFatal === 'true';
+                        const pointsGained = parseInt(obj.dataset.points); 
+                        
+                        const correctionIsFalling = fallingObjects.some(item => item.dataset.type === 'decimal-fix');
+
+                        if (isDecimal && !isFatal && !correctionIsFalling && playerScore >= 50) {
+                             updateScore(-50); 
+                             // REMOVIDO: showFeedbackMessage(`-50 PONTOS (COMPRA DE CORREÇÃO)!`, 'red');
+                             
+                             const monsterRect = obj.getBoundingClientRect();
+                             createDecimalFix(monsterRect.left, monsterRect.top, playerValue); 
+                             
+                        } else if (isDecimal && !isFatal && correctionIsFalling) {
+                            // REMOVIDO: showFeedbackMessage(`CORREÇÃO JÁ ESTÁ CAINDO!`, 'yellow');
+                            updateScore(pointsGained);
+                            // REMOVIDO: showFeedbackMessage(`+${pointsGained} PONTOS! (MONSTRO ABATIDO)`, 'lime'); 
+                            
+                        } else if (isDecimal && !isFatal && playerScore < 50) {
+                            // REMOVIDO: showFeedbackMessage(`PONTOS INSUFICIENTES (REQUER 50)!`, 'red');
+                            updateScore(pointsGained);
+                            // REMOVIDO: showFeedbackMessage(`+${pointsGained} PONTOS! (MONSTRO ABATIDO)`, 'lime'); 
+                            
+                        } else {
+                            updateScore(pointsGained);
+                            // REMOVIDO: showFeedbackMessage(`+${pointsGained} PONTOS! (MONSTRO ABATIDO)`, 'lime');
+                        }
+                        
+                    }
+                    
+                    // Remove o label se existir
+                    if (obj.dataset.labelId) { document.getElementById(obj.dataset.labelId)?.remove(); }
+                    obj.remove();
+                    fallingObjects.splice(j, 1);
+                    bullet.remove();
+                    bullets.splice(index, 1);
+
+                    return true; 
+                }
+             }
+             return false;
+        }
+        
+        // --- FUNÇÕES DE LOOP E MOVIMENTO ---
+        
+        function gameLoop() {
+            if (isGameOver || isPaused || MAX_PLAYERS === 0) return;
+            
+            // Movimento dos Tiros
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                 const bullet = bullets[i];
+                 let currentY = parseFloat(bullet.style.top);
+                 currentY -= 15; 
+                 bullet.style.top = `${currentY}px`;
+                 
+                 if (checkBulletCollision(bullet, i)) { continue; }
+
+                 if (currentY < 0) { bullet.remove(); bullets.splice(i, 1); }
+             }
+
+            // Movimento dos Objetos Caindo
+            for (let i = fallingObjects.length - 1; i >= 0; i--) {
+                const obj = fallingObjects[i];
+                
+                if (checkPlayerCollision(obj, i)) { continue; }
+
+                let currentY = parseFloat(obj.dataset.y);
+                let currentX;
+                let fallSpeed = parseFloat(obj.dataset.fallSpeed);
+                
+                if (obj.dataset.type !== 'decimal-fix') { fallSpeed *= level; }
+                
+                if (obj.dataset.movementType === 'parabolic') {
+                    let parabolicInitialX = parseFloat(obj.dataset.initialX); 
+                    let parabolicInitialY = parseFloat(obj.dataset.initialY); 
+                    let parabolicXVelocity = parseFloat(obj.dataset.parabolicXVelocity);
+                    let parabolicYVelocity = parseFloat(obj.dataset.parabolicYVelocity);
+                    let timeInAir = parseFloat(obj.dataset.timeInAir);
+
+                    timeInAir += 0.1; 
+
+                    currentX = parabolicInitialX + parabolicXVelocity * timeInAir * 5; 
+                    currentY = parabolicInitialY + parabolicYVelocity * timeInAir * 10; 
+                    
+                    obj.dataset.timeInAir = timeInAir;
+
+                     if (currentX < -100 || currentX > window.innerWidth + 100) {
+                        // Remove o label se existir
+                        if (obj.dataset.labelId) { document.getElementById(obj.dataset.labelId)?.remove(); }
+                        obj.remove(); fallingObjects.splice(i, 1); continue;
+                    }
+
+                } else {
+                    const initialX = parseFloat(obj.dataset.initialX);
+                    const waveAmplitude = parseFloat(obj.dataset.waveAmplitude);
+                    let waveOffset = parseFloat(obj.dataset.waveOffset);
+
+                    currentY += fallSpeed; 
+                    waveOffset += 0.05; 
+                    currentX = initialX + Math.sin(waveOffset) * waveAmplitude; 
+
+                    obj.dataset.waveOffset = waveOffset;
+                }
+
+                obj.dataset.y = currentY; 
+                obj.style.transform = `translate(${currentX}px, ${currentY}px) scale(1)`;
+                
+                // NOVO CÓDIGO: MOVER O TEXTO FLUTUANTE (LABEL)
+                if (obj.dataset.labelId) {
+                    const label = document.getElementById(obj.dataset.labelId);
+                    if (label) {
+                        // Ajusta a posição do label para ficar um pouco acima do objeto
+                        label.style.transform = `translate(${currentX}px, ${currentY - 30}px)`; 
+                    }
+                }
+                // FIM NOVO CÓDIGO
+                
+                if (currentY > window.innerHeight) {
+                    // Remove o label ao cair fora da tela
+                    if (obj.dataset.labelId) { document.getElementById(obj.dataset.labelId)?.remove(); }
+                    obj.remove(); fallingObjects.splice(i, 1); continue;
+                }
+            }
+        }
+        
+        // --- FUNÇÕES DE SETUP DA INTERFACE ---
+        
+        function updatePlayerSelectButtonActiveState() {
+            document.querySelectorAll('#player-select-buttons-inline button').forEach(button => {
+                const playerCount = parseInt(button.textContent.match(/\d+/)[0]);
+                if (playerCount === MAX_PLAYERS) {
+                    button.classList.add('active-player-count');
+                } else {
+                    button.classList.remove('active-player-count');
+                }
+            });
+        }
+        
+        function generatePlayerSelectButtons() {
+            playerSelectButtonsContainer.innerHTML = '';
+            for (let i = 1; i <= 6; i++) {
+                const button = document.createElement('button');
+                button.textContent = `${i}`;
+                button.title = `${i} Jogador${i > 1 ? 'es' : ''} (Reinicia o Jogo)`;
+                button.onclick = () => selectPlayerCount(i);
+                playerSelectButtonsContainer.appendChild(button);
+            }
+            updatePlayerSelectButtonActiveState();
+        }
+
+        // --- INICIALIZAÇÃO E CONTROLES DE INTERFACE (CORREÇÃO DE ÁUDIO INCLUÍDA) ---
+        window.onload = () => {
+             initializeWavyTitle(gameTitleElement, "ZerandoVianei"); 
+
+             document.getElementById('pause-button').onclick = togglePause;
+             document.getElementById('reset-button').onclick = fullGameReset; 
+             
+             document.getElementById('tutorial-button').onclick = () => {
+                 playFx('som-clique-sair-jogo');
+                 alert(
+                     "*** DEDICATÓRIA ***\n" +
+                     "Esse jogo é em homenagem ao querido **Vianei**, que antes tem Jose e depois termina em Gomes, " +
+                     "mas também virou **Vianovski, Vianelo, Viandembrovski**, haja língua, e virou joguinho inteligente " +
+                     "então temos o bacana **ZerandoVianei**. Abraços. vgm.\n\n" + 
+    
+                     "*** TUTORIAL ***\n" + 
+                     "OBJETIVO: Levar o Valor do Jogador (Player Value) para o mais próximo de ZERO (abaixo de 0.001) para subir de Nível.\n" +
+                     "CONTROLES: Mova o mouse/dedo para movimentar o jogador. Clique/Toque na tela para atirar.\n" + // Linha atualizada
+                     "COLETAR NÚMEROS/OPERADORES para tentar **ZERAR** o valor. " +
+                     "Multiplicação: x2 ou x3. Divisão: /2 ou /3. Potenciação: x² ou x³. " +
+                     "**ATENÇÃO:** A Divisão (/) é BLOQUEADA se o valor do jogador estiver entre -0.25 e 0.25.\n" +
+                     "**MONSTROS** subtraem um valor aleatório de -6 a 6 do seu valor e subtraem pontos ao colidir. " +
+                     "A Sereia Malvada (🧜‍♀️) aparece a partir do Nível 2 e subtrai um valor fixo de 3. " +
+                     "**O POLVO EMILIO (🐙) aparece a partir do Nível 3 e desconta 4 pontos da sua pontuação ao colidir.**\n" +
+                     "Atirar em MONSTROS *não-fatais* com valor decimal e mais de 50 pontos **compra correção decimal por 50pts** (Conserta o Decimal para o inteiro mais próximo). " +
+                     "Caso contrário, você **GANHA** os pontos do monstro (todos dão pontos). " +
+                     "Alguns monstros não-fatais podem vir das laterais com movimento curvo. " +
+                     "O valor do jogador tem uma precisão máxima de 3 casas decimais."
+                 );
+             };
+             
+             generatePlayerSelectButtons();
+             initializeAudio(); 
+             
+             // ADICIONA LISTENERS para desbloquear o áudio no primeiro clique/tecla (Corrigindo o AutoPlay)
+             document.addEventListener('click', unlockAudio, { once: true });
+             document.addEventListener('keydown', unlockAudio, { once: true });
+             
+             selectPlayerCount(1);
+        };
+        
+    </script> 
+</body>
+</html>
